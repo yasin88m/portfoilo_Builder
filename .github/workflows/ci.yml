@@ -1,0 +1,25 @@
+name: Quality checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: portfoilo-builder-source
+          include-hidden-files: true
+          path: |
+            public/
+            server.mjs
+            package.json
+            .env.example
+            Dockerfile
+            README.md
