@@ -1,7 +1,11 @@
+import {icon,mountIcons} from './icons.js';
+import {initLandingMotion} from './motion.js';
 import {initPreviews} from './preview.js';
 import {getDemo} from './demo.js';
 import {templates,templateNames,templateDescriptions,portfolioHTML,palettes} from './shared.js';
-document.querySelector('#templateGallery').innerHTML=templates.map((t,i)=>`<article class="gallery-card"><div class="gallery-preview"><iframe title="پیش‌نمایش ${templateNames[i]}" sandbox="" loading="lazy"></iframe></div><div class="gallery-caption"><div><small>COLLECTION / 0${i+1}</small><h3>${templateNames[i]}</h3><p class="template-detail">${templateDescriptions[i]}</p></div><a href="/builder?template=${t}" class="round-link" aria-label="انتخاب قالب ${templateNames[i]}">↗</a></div></article>`).join('');
+document.querySelector('#templateGallery').innerHTML=templates.map((t,i)=>`<article class="gallery-card"><div class="gallery-preview"><iframe title="پیش‌نمایش ${templateNames[i]}" sandbox="" loading="lazy"></iframe></div><div class="gallery-caption"><div><small>COLLECTION / 0${i+1}</small><h3>${templateNames[i]}</h3><p class="template-detail">${templateDescriptions[i]}</p></div><a href="/builder?template=${t}" class="round-link" aria-label="انتخاب قالب ${templateNames[i]}">${icon('arrow')}</a></div></article>`).join('');
 document.querySelectorAll('.gallery-card iframe').forEach((frame,i)=>{getDemo({template:templates[i]}).then(d=>frame.srcdoc=portfolioHTML(d)).catch(()=>{frame.title='بارگذاری تصویر دمو ناموفق؛ صفحه را تازه کنید';});});
 
 initPreviews();
+
+mountIcons();initLandingMotion();
