@@ -3,7 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {randomBytes,createHmac,timingSafeEqual} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {normalize} from './public/shared.js';
-const env=process.env,port=Number(env.PORT||3000),origin=env.APP_ORIGIN||`http://localhost:${port}`;
+const env=process.env,portArg=process.argv.indexOf('--port'),port=Number(env.PORT||(portArg>=0?process.argv[portArg+1]:3000)),origin=env.APP_ORIGIN||`http://localhost:${port}`;
 const configured=Boolean(env.GITHUB_CLIENT_ID&&env.GITHUB_CLIENT_SECRET&&env.SESSION_SECRET?.length>=32&&env.GITHUB_DATA_REPO&&env.GITHUB_DATA_TOKEN);
 const sessions=new Map(),states=new Map(),rates=new Map();
 function signature(s){return createHmac('sha256',env.SESSION_SECRET||'local-development-no-auth').update(s).digest('hex');}

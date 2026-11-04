@@ -14,4 +14,12 @@ test('preview accepts only parent scrolling and relays wheel/touch to the page',
  let prevented=false;events.wheel({ctrlKey:false,deltaY:80,deltaMode:0,preventDefault(){prevented=true;}});assert.ok(prevented);assert.equal(messages.at(-1).type,'portfolio:wheel');assert.equal(messages.at(-1).delta,80);
  events.touchstart({touches:[{clientY:300}]});events.touchmove({touches:[{clientY:260}],preventDefault(){}});assert.equal(messages.at(-1).delta,40);
  events.message({source:parent,data:{type:'portfolio:local',delta:-200}});assert.equal(scrolls.at(-1),800);
+ events.message({source:parent,data:{type:'portfolio:mode',expanded:true}});
+ prevented=false;const messagesBefore=messages.length;
+ events.wheel({ctrlKey:false,deltaY:80,deltaMode:0,preventDefault(){prevented=true;}});
+ assert.equal(prevented,false,'expanded preview must keep native wheel scrolling');assert.equal(messages.length,messagesBefore);
+ events.touchmove({touches:[{clientY:200}],preventDefault(){throw Error('expanded touch must stay native');}});
+ events.message({source:parent,data:{type:'portfolio:mode',expanded:false}});
+ events.wheel({ctrlKey:false,deltaY:80,deltaMode:0,preventDefault(){prevented=true;}});assert.equal(prevented,true);
+
 });
