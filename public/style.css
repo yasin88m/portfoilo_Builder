@@ -43,3 +43,5 @@ body.preview-expanded{overflow:hidden}
 .preview-panel.fullscreen .preview-note{display:none}
 .preview-panel.fullscreen .extra-actions{padding-top:8px}
 @media(max-width:620px){.builder-page .preview-panel.fullscreen{padding:8px}.preview-panel.fullscreen .device-label{display:none}.preview-panel.fullscreen .extra-actions{gap:4px 12px}}
+
+.export-options{padding:18px;border:1px solid var(--line);background:var(--glass);border-radius:14px;margin-bottom:20px}.export-options h3{margin:0 0 8px}.export-options p{font-size:12px;color:var(--muted)}.export-options>div{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}.export-options small{display:block;color:var(--muted);line-height:1.9;font-size:11px}.export-options .button{flex:1;min-width:180px}.fullscreen .extra-actions .button{min-height:36px}
