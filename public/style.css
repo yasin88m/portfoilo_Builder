@@ -7,3 +7,5 @@ body{font-family:Vazirmatn,sans-serif;background:radial-gradient(ellipse at 80% 
 
 .template small{display:block;line-height:1.8;color:var(--muted);font-size:10px;margin-top:6px}.landing-hero h1{font-weight:700}
 .template-detail{font-size:10px;color:var(--muted);max-width:230px;margin-bottom:0}.gallery-caption{gap:10px}.gallery-caption h3{font-size:14px}
+
+.demo-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.demo-controls>span{font-size:11px;color:var(--muted)}.demo-controls button{padding:7px 12px;border:1px solid var(--line);border-radius:9px;background:var(--glass)}.demo-controls button:disabled{opacity:.5;cursor:wait}
