@@ -1,3 +1,4 @@
+import {initPreviews} from './preview.js';
 import {getDemo} from './demo.js';
 import{normalize,portfolioHTML,palettes,templates,templateNames,templateDescriptions,escapeHTML as e}from'./shared.js';
 const $=s=>document.querySelector(s),key='portfolio-builder-v1';
@@ -37,3 +38,5 @@ $('#loadDemo').onclick=()=>fillDemo('woman');$('#loadDemoMan').onclick=()=>fillD
 $('#templatesLink').onclick=()=>{step=2;render();$('#workspace').scrollIntoView();};$('#help').onclick=()=>$('#helpDialog').showModal();$('#closeHelp').onclick=()=>$('#helpDialog').close();$('#fullscreen').onclick=()=>$('.preview-panel').classList.toggle('fullscreen');document.addEventListener('keydown',ev=>{if(ev.key==='Escape')$('.preview-panel').classList.remove('fullscreen');});document.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{$('.frame-wrap').classList.toggle('mobile',b.dataset.device==='mobile');document.querySelectorAll('[data-device]').forEach(x=>x.classList.toggle('selected',x===b));});
 async function loadCloud(){if(!confirm('پیش‌نویس فعلی با نسخه ذخیره‌شده در حساب جایگزین شود؟'))return;try{const res=await fetch('/api/portfolio');const result=await res.json();if(!res.ok)throw Error(result.error);data=normalize(result.portfolio);remoteSha=result.sha;save();preview();render();toast('اطلاعات حساب بازیابی شد');}catch(err){toast(err.message);}}
 async function init(){try{const r=await fetch('/api/session');const s=await r.json();user=s.user;if(user){$('#login').textContent=`${user.login} · خروج` ;$('#login').href='#';$('#login').onclick=async ev=>{ev.preventDefault();await fetch('/auth/logout',{method:'POST'});location.reload();};}else if(!s.configured){$('#login').textContent='حالت محلی';$('#login').href='#';$('#login').onclick=ev=>{ev.preventDefault();toast('ورود آنلاین هنوز روی سرور تنظیم نشده؛ ساخت و خروجی سایت فعال است.');};}}catch{}render();preview();}init();
+
+initPreviews();
