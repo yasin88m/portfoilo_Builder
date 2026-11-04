@@ -13,3 +13,14 @@ export async function getDemo({gender,template='codecraft',color='#7552ed',palet
  const male=gender==='man',name=male?'آرمان رضایی':'سارا احمدی';
  return {name,title:male?'طراح و توسعه‌دهنده وب':'طراح محصول و هویت بصری',field:male?'توسعه وب و تجربه دیجیتال':'طراحی و ارتباطات بصری',headline:male?'ایده‌های شما را برای وب می‌سازم.':'طراحی‌هایی که دیده و به خاطر سپرده می‌شوند.',bio:`من ${name} هستم. به کمک طراحی و فناوری، ایده‌ها را به تجربه‌هایی ساده و کاربردی تبدیل می‌کنم. این پروفایل، شخصیت و پروژه‌ها صرفاً برای نمایش امکانات قالب ساخته شده‌اند.`,location:'تهران، ایران',skills:male?'JavaScript، React، طراحی رابط کاربری، توسعه وب، Git، تجربه کاربری':'Figma، طراحی رابط کاربری، هویت بصری، تصویرسازی، تجربه کاربری، طراحی سیستم',services:'طراحی وب‌سایت شخصی\nطراحی تجربه دیجیتال\nمشاوره و توسعه ایده',experience:'سوابق نمونه برای نمایش قالب:\nطراح مستقل در استودیو خلاق\nهمکاری در طراحی محصولات دیجیتال',education:'تحصیلات نمونه — طراحی و فناوری',email:'hello@example.com',phone:'',social:'',avatar,cover:architecture,projects,template,color,paletteOverride,slug:male?'arman-demo':'sara-demo',domain:''};
 }
+
+// Repair only the two exact truncated demo files shipped before 3.4.1.
+// Other uploads and every text/project field remain untouched.
+export async function repairDemoPortrait(avatar){
+ if(!avatar?.startsWith('data:image/png;base64,')||!globalThis.crypto?.subtle)return avatar;
+ const bytes=Uint8Array.from(atob(avatar.split(',')[1]),c=>c.charCodeAt(0));
+ if(![47199,81638].includes(bytes.length))return avatar;
+ const hash=[...new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))].map(x=>x.toString(16).padStart(2,'0')).join('');
+ const damaged={'e7b3f64e095bd0c1082227e7a23247627aa49dcadcf26bc7d8d6ca0f161dd040':'woman','77afd10e8807ed053bccb62d04a5841b19cd1be53c50471f9125dd5304f8e56f':'man'};
+ return damaged[hash]?asset(damaged[hash]):avatar;
+}
