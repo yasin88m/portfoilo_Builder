@@ -16,7 +16,7 @@ async function ensurePrivateRepo(){if(!/^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_DATA
 async function body(req){let chunks=[],size=0;for await(const chunk of req){size+=chunk.length;if(size>5_100_000){const err=Error('حجم درخواست بیش از حد مجاز است');err.status=413;throw err;}chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString());}catch{const err=Error('اطلاعات درخواست معتبر نیست');err.status=400;throw err;}}
 function redirect(res,url,headers={}){res.writeHead(302,{Location:url,...headers});res.end();}
 export const server=http.createServer(async(req,res)=>{
- res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'");
+ res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'");
  try{
  const url=new URL(req.url,origin),path=url.pathname;
  if(['POST','PUT','DELETE'].includes(req.method)&&req.headers.origin!==origin)return json(res,403,{error:'مبدأ درخواست معتبر نیست'});
@@ -50,7 +50,7 @@ export const server=http.createServer(async(req,res)=>{
   return json(res,405,{error:'روش درخواست مجاز نیست'});
  }
  if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'روش درخواست مجاز نیست'});
- const files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
+ const files={'/builder':['builder.html','text/html'],'/theme.js':['theme.js','text/javascript'],'/landing.js':['landing.js','text/javascript'],'/font.css':['font.css','text/css'],'/font.js':['font.js','text/javascript'],'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
  if(!files[path])return json(res,404,{error:'صفحه پیدا نشد'});
  const [file,type]=files[path],content=await readFile(new URL(`./public/${file}`,import.meta.url));res.writeHead(200,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:content);
  }catch(err){json(res,err.status===413?413:502,{error:err.message||'خطای سرور؛ دوباره تلاش کنید.'});}
