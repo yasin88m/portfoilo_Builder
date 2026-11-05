@@ -5,6 +5,51 @@ import { normalize, portfolioHTML } from './public/shared.js';
 const id = () => randomBytes(16).toString('hex');
 const siteId = /^[a-f0-9]{32}$/;
 const sessionTTL = 7 * 86400;
+
+async function logAdminEvent(records, event) {
+ const createdAt = Date.now();
+ const value = { ...event, createdAt };
+ const key = 'admin:analytics:event:' + createdAt + ':' + id();
+ await records.write(key, value, null, value);
+}
+
+async function indexAdminUser(records, user, type, isNew = false) {
+ const key = 'admin:user:' + String(user.id);
+ for (let attempt = 0; attempt < 4; attempt++) {
+  const old = await records.read(key);
+  const now = Date.now();
+  const value = {
+   user: { id: String(user.id), login: String(user.login || '') },
+   type,
+   createdAt: old?.value?.createdAt ?? (isNew ? now : null),
+   firstSeenAt: old?.value?.firstSeenAt || now,
+   lastSeenAt: now
+  };
+  const summary = {
+   id: value.user.id, login: value.user.login, type,
+   createdAt: value.createdAt, firstSeenAt: value.firstSeenAt, lastSeenAt: now
+  };
+  const revision = await records.write(key, value, old?.revision ?? null, summary);
+  if (revision) {
+   if (!old && isNew) await logAdminEvent(records, { type: 'register', userId: value.user.id, login: value.user.login, authType: type });
+   return;
+  }
+ }
+}
+
+async function recordAdminPageView(records, siteKey, req) {
+ if (req.method !== 'GET' || /bot|crawler|spider|preview|headless/i.test(String(req.headers['user-agent'] || ''))) return;
+ const day = new Date().toISOString().slice(0, 10);
+ const key = 'admin:analytics:view:' + siteKey + ':' + day;
+ for (let attempt = 0; attempt < 4; attempt++) {
+  const old = await records.read(key);
+  const count = Number(old?.value?.count || 0) + 1;
+  const value = { siteKey, day, count };
+  const revision = await records.write(key, value, old?.revision ?? null, value);
+  if (revision) return;
+ }
+}
+
 export function passwordHash(password, salt) {
  return new Promise((resolve, reject) => {
   scrypt(password, Buffer.from(salt, 'hex'), 32, { N: 32768, r: 8, p: 3, maxmem: 48 * 1024 * 1024 }, (error, hash) => {
@@ -93,6 +138,7 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
    if (!account || !matches) return responseError(res, 401, 'نام کاربری یا رمز عبور نادرست است.');
    user = account.user;
   }
+  await indexAdminUser(records, user, 'account', register);
   const oldToken = cookies(req).pb_account || '';
   if (/^[a-f0-9]{64}$/.test(oldToken)) await store.remove('account-session:' + oldToken);
   const token = randomBytes(32).toString('hex');
@@ -102,7 +148,7 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
  }
 
  function summary(owner, site, value) {
-  return { id: site, name: value.draft.name, title: value.draft.title, updated: value.updated, url: value.published ? siteURL(owner, site) : null };
+  return { id: site, name: value.draft.name, title: value.draft.title, template: value.draft.template || 'unknown', updated: value.updated, url: value.published ? siteURL(owner, site) : null };
  }
 
  async function sites(req, res, path) {
@@ -141,7 +187,12 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
   const value = { draft, updated: Date.now(), published: action === 'publish' ? draft : action === 'unpublish' ? null : current?.value.published || null };
   const meta = summary(user.id, target, value);
   const revision = await records.write(prefix + target, value, current?.revision ?? null, meta);
-  return revision ? json(res, 200, { ...meta, revision }) : conflict();
+  if (!revision) return conflict();
+  await logAdminEvent(records, {
+   type: action, userId: user.id, login: user.login, siteId: target,
+   siteName: draft?.name || '', template: draft?.template || 'unknown'
+  });
+  return json(res, 200, { ...meta, revision });
  }
 
  return async (req, res, path) => {
@@ -166,6 +217,7 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
    if ((section==='plans' && (!p.plans.enabled || project)) || (project && !p.projects.some(item=>item.id===project))) return responseError(res,404,'صفحه پیدا نشد.');
    const page = section==='plans'?'plans':project|| (section==='projects'?'works':'home');
    const links = siteLinks(`/sites/${owner}/${site}`);
+   await recordAdminPageView(records, 'site:' + owner + ':' + site, req);
    const html = portfolioHTML(p,{page,links}).replace('</body>', '<aside style="text-align:center;background:#17152a;color:#fff;padding:14px;font:inherit"><a href="/" style="color:#fff">✦ ساخته‌شده با پورتفولیو بیلدر</a></aside></body>');
    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
