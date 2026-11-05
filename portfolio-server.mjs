@@ -1,3 +1,4 @@
+import {siteLinks} from './public/site-pages.js';
 import http from 'node:http';
 import { accountRoutes, memoryRecords } from './accounts.mjs';
 import {randomBytes,createHash,createHmac,timingSafeEqual} from 'node:crypto';
@@ -132,12 +133,16 @@ return http.createServer(async(req,res)=>{
  }
  if(path==='/auth/logout'&&req.method==='POST'){const s=cookies(req).pb_session||'';if(await session(req))await store.remove('session:'+s.slice(0,s.lastIndexOf('.')));res.setHeader('Set-Cookie',cookie('pb_session','',0));return json(res,200,{ok:true});}
  if(path==='/api/publication') return await managePublication(req,res);
- const publicPortfolio = /^\/p\/([1-9][0-9]{0,19})$/.exec(path);
+ const publicPortfolio = /^\/p\/([1-9][0-9]{0,19})(?:\/(plans|projects)(?:\/([a-z0-9-]{1,48}))?)?$/.exec(path);
  if(publicPortfolio && ['GET','HEAD'].includes(req.method)){
   if(!configured) return json(res,404,{error:'پورتفولیو در دسترس نیست.'});
   const record = await readPublication(publicPortfolio[1]);
   if(!record.portfolio) return json(res,404,{error:'این پورتفولیو منتشر نشده است.'});
-  const html = portfolioHTML(record.portfolio);
+  const [,id,section,project]=publicPortfolio;
+  const p=normalize(record.portfolio);
+  if ((section==='plans' && (!p.plans.enabled || project)) || (project && !p.projects.some(item=>item.id===project))) return json(res,404,{error:'صفحه پیدا نشد.'});
+  const page=section==='plans'?'plans':project||(section==='projects'?'works':'home');
+  const html = portfolioHTML(p,{page,links:siteLinks('/p/'+id)});
   res.setHeader('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});
   return res.end(req.method==='HEAD'?undefined:html);
@@ -165,7 +170,7 @@ return http.createServer(async(req,res)=>{
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});
   return res.end(req.method==='HEAD'?undefined:`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پیش‌نمایش پورتفولیو</title><style id="portfolio-style"></style><style>html{scrollbar-width:none;scroll-behavior:auto;overflow-anchor:none}::-webkit-scrollbar{display:none}</style></head><body><script>${bridge}</script></body></html>`);
  }
- const files={'/account':['account.html','text/html'],'/account.js':['account.js','text/javascript'],'/assets/hero/builder-reference.png':['assets/hero/builder-reference.png','image/png'],'/customize.js':['customize.js','text/javascript'],'/customize-ui.js':['customize-ui.js','text/javascript'],'/elementor.js':['elementor.js','text/javascript'],'/elementor-runtime.js':['elementor-runtime.js','text/javascript'],'/wordpress.js':['wordpress.js','text/javascript'],'/wordpress-runtime.js':['wordpress-runtime.js','text/javascript'],'/zip.js':['zip.js','text/javascript'],'/icons.js':['icons.js','text/javascript'],'/motion.js':['motion.js','text/javascript'],'/builder-scroll.js':['builder-scroll.js','text/javascript'],'/preview-bridge.js':['preview-bridge.js','text/javascript'],'/preview.js':['preview.js','text/javascript'],'/demo.js':['demo.js','text/javascript'],'/assets/demo/man.png':['assets/demo/man.png','image/png'],'/assets/demo/woman.png':['assets/demo/woman.png','image/png'],'/assets/demo/architecture.webp':['assets/demo/architecture.webp','image/webp'],'/assets/demo/dashboard.webp':['assets/demo/dashboard.webp','image/webp'],'/assets/demo/branding.webp':['assets/demo/branding.webp','image/webp'],'/builder':['builder.html','text/html'],'/theme.js':['theme.js','text/javascript'],'/landing.js':['landing.js','text/javascript'],'/font.css':['font.css','text/css'],'/font.js':['font.js','text/javascript'],'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
+ const files={'/site-pages.js':['site-pages.js','text/javascript'],'/site-editor.js':['site-editor.js','text/javascript'],'/account':['account.html','text/html'],'/account.js':['account.js','text/javascript'],'/assets/hero/builder-reference.png':['assets/hero/builder-reference.png','image/png'],'/customize.js':['customize.js','text/javascript'],'/customize-ui.js':['customize-ui.js','text/javascript'],'/elementor.js':['elementor.js','text/javascript'],'/elementor-runtime.js':['elementor-runtime.js','text/javascript'],'/wordpress.js':['wordpress.js','text/javascript'],'/wordpress-runtime.js':['wordpress-runtime.js','text/javascript'],'/zip.js':['zip.js','text/javascript'],'/icons.js':['icons.js','text/javascript'],'/motion.js':['motion.js','text/javascript'],'/builder-scroll.js':['builder-scroll.js','text/javascript'],'/preview-bridge.js':['preview-bridge.js','text/javascript'],'/preview.js':['preview.js','text/javascript'],'/demo.js':['demo.js','text/javascript'],'/assets/demo/man.png':['assets/demo/man.png','image/png'],'/assets/demo/woman.png':['assets/demo/woman.png','image/png'],'/assets/demo/architecture.webp':['assets/demo/architecture.webp','image/webp'],'/assets/demo/dashboard.webp':['assets/demo/dashboard.webp','image/webp'],'/assets/demo/branding.webp':['assets/demo/branding.webp','image/webp'],'/builder':['builder.html','text/html'],'/theme.js':['theme.js','text/javascript'],'/landing.js':['landing.js','text/javascript'],'/font.css':['font.css','text/css'],'/font.js':['font.js','text/javascript'],'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
  if(!files[path])return json(res,404,{error:'صفحه پیدا نشد'});
  const [file,type]=files[path];
  let content=await loadAsset(file);

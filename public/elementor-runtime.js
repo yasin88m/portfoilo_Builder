@@ -22,13 +22,21 @@ function pfb_e_resolve($data,$import=true) {
  if (!is_array($data)) { return $data; }
  if (isset($data['url']) && is_string($data['url'])) {
   if (strpos($data['url'],'assets/images/')===0) { $image=pfb_e_media($data['url'],$import);$data['url']=$image['url'];$data['id']=$image['id']; }
+  elseif (strpos($data['url'],'?pfb_page=')===0) { $data['url']=pfb_site_url(substr($data['url'],10)); }
   elseif (strpos($data['url'],'#')===0) { $data['url']=home_url('/'.$data['url']); }
  }
  foreach ($data as $key=>$value) { if (is_array($value)) { $data[$key]=pfb_e_resolve($value,$import); } }
  return $data;
 }
+function pfb_e_roles() {
+ $roles=array('page'=>'صفحه اصلی','header'=>'سربرگ','footer'=>'پاورقی','works'=>'همه نمونه‌کارها');
+ $seed=pfb_seed();
+ if (!empty($seed['plans']['enabled'])) { $roles['plans']='پلن‌ها'; }
+ foreach ($seed['projects'] as $project) { if (!empty($project['title']) && !empty($project['id'])) { $roles['project-'.$project['id']]=$project['title']; } }
+ return $roles;
+}
 function pfb_e_blueprint($role,$import=true) {
- if (!in_array($role,array('page','header','footer'),true)) { throw new RuntimeException('نوع سند نامعتبر است'); }
+ if (!isset(pfb_e_roles()[$role])) { throw new RuntimeException('نوع سند نامعتبر است'); }
  $path=get_template_directory().'/elementor/'.$role.'.json';
  $doc=json_decode(file_get_contents($path),true);
  if (!is_array($doc) || !isset($doc['content']) || !is_array($doc['content'])) { throw new RuntimeException('ساختار فایل المنتور معتبر نیست'); }
@@ -41,9 +49,10 @@ function pfb_e_document($role) {
   if (get_post_meta($id,'_pfb_initialized',true) || !empty($existing)) { return $id; }
  }
  $blueprint=pfb_e_blueprint($role,true);
+ $is_page=!in_array($role,array('header','footer'),true);
  $manager=\Elementor\Plugin::$instance->documents;
  if (!$id || !get_post($id) || get_post_status($id)==='trash') {
-  $document=$manager->create($role==='page'?'wp-page':'section',wp_slash(array('post_title'=>$blueprint['title'],'post_status'=>'draft','post_type'=>$role==='page'?'page':'elementor_library')));
+  $document=$manager->create($is_page?'wp-page':'section',wp_slash(array('post_title'=>$blueprint['title'],'post_status'=>'draft','post_type'=>$is_page?'page':'elementor_library')));
   if (is_wp_error($document) || !$document) { throw new RuntimeException('ساخت سند المنتور انجام نشد'); }
   $id=$document->get_main_id();$state=pfb_e_state();$state[$role]=$id;update_option(pfb_e_key(),$state,false);
  } else { $document=$manager->get($id); }
@@ -72,7 +81,8 @@ function pfb_e_setup_handler() {
  if ((!empty($_POST['set_home']) && !current_user_can('publish_pages')) || (!empty($_POST['visual_chrome']) && !current_user_can('publish_posts'))) { wp_die('اجازه انتشار محتوا را ندارید'); }
  if (!pfb_e_available()) { wp_die('ابتدا المنتور رایگان را نصب و فعال کنید'); }
  try {
-  $page=pfb_e_document('page');pfb_e_document('header');pfb_e_document('footer');
+  $page=pfb_e_document('page');
+  foreach (pfb_e_roles() as $role=>$label) { if ($role==='page') { continue; } $id=pfb_e_document($role); if (!empty($_POST['set_home']) && !in_array($role,array('header','footer'),true)) { wp_update_post(array('ID'=>$id,'post_status'=>'publish')); } }
   if (!empty($_POST['visual_chrome'])) { foreach(array('header','footer') as $role){$st=pfb_e_state();wp_update_post(array('ID'=>absint($st[$role]),'post_status'=>'publish'));}set_theme_mod('pfb_visual_chrome',true); }
   if (!empty($_POST['set_home'])) { wp_update_post(array('ID'=>$page,'post_status'=>'publish'));update_option('show_on_front','page');update_option('page_on_front',$page); }
   $state=pfb_e_state();unset($state['error']);$state['ready']=true;update_option(pfb_e_key(),$state,false);
@@ -83,7 +93,7 @@ add_action('admin_post_pfb_elementor_setup','pfb_e_setup_handler');
 function pfb_e_download() {
  if (!current_user_can('edit_theme_options')) { wp_die('دسترسی کافی نیست'); }
  check_admin_referer('pfb_elementor_download');$role=isset($_GET['role'])?sanitize_key($_GET['role']):'page';
- if (!in_array($role,array('page','header','footer'),true)) { wp_die('نوع فایل نامعتبر است'); }
+ if (!isset(pfb_e_roles()[$role])) { wp_die('نوع فایل نامعتبر است'); }
  $doc=pfb_e_blueprint($role,false);$state=pfb_e_state();$id=isset($state[$role])?absint($state[$role]):0;
  if ($id && current_user_can('edit_post',$id)) { $content=json_decode(get_post_meta($id,'_elementor_data',true),true);if(is_array($content)&&$content){$doc['content']=$content;$doc['title']=get_the_title($id);$doc['page_settings']=get_post_meta($id,'_elementor_page_settings',true)?:array();} }
  nocache_headers();header('Content-Type: application/json; charset=utf-8');header('Content-Disposition: attachment; filename="portfolio-'.$role.'-elementor.json"');echo wp_json_encode($doc,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);exit;
@@ -117,13 +127,13 @@ function pfb_e_dashboard() {
  </section><section class="pfb-card"><h2>۲. ساخت محتوای آماده</h2><p>صفحه اصلی، سربرگ و فوتر اولیه ساخته می‌شوند. بدون انتخاب گزینه زیر، صفحه اصلی فعلی شما عوض نمی‌شود و برگه جدید پیش‌نویس می‌ماند. اجرای دوباره، ویرایش‌های قبلی شما را بازنویسی نمی‌کند.</p>
  <?php if (current_user_can('manage_options') && current_user_can('edit_pages') && current_user_can('upload_files')) : ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><?php wp_nonce_field('pfb_elementor_setup'); ?><input type="hidden" name="action" value="pfb_elementor_setup"><label><input type="checkbox" name="set_home" value="1"> برگه ساخته‌شده منتشر و به صفحه اصلی سایت تبدیل شود</label><label><input type="checkbox" name="visual_chrome" value="1"> سربرگ و فوتر المنتوری منتشر و در سایت فعال شوند</label><button class="button button-primary" <?php disabled(!pfb_e_available()); ?>><?php echo !empty($state['ready'])?'بررسی و تکمیل راه‌اندازی':'ساخت صفحات قابل ویرایش'; ?></button></form><?php endif; ?>
  </section><section class="pfb-card"><h2>۳. ویرایش و دریافت الگوها</h2>
- <?php foreach(array('page'=>'صفحه اصلی','header'=>'سربرگ','footer'=>'پاورقی') as $role=>$label) : $id=isset($state[$role])?absint($state[$role]):0; ?>
+ <?php foreach(pfb_e_roles() as $role=>$label) : $id=isset($state[$role])?absint($state[$role]):0; ?>
  <p><strong><?php echo esc_html($label); ?></strong><br>
  <?php if($id && get_post($id) && current_user_can('edit_post',$id)) : ?><a class="button button-primary" href="<?php echo esc_url(admin_url('post.php?post='.$id.'&action=elementor')); ?>">ویرایش با المنتور</a><a class="button" href="<?php echo esc_url(get_edit_post_link($id)); ?>">تنظیمات سند</a><?php endif; ?>
  <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=pfb_elementor_download&role='.$role),'pfb_elementor_download')); ?>">دریافت JSON المنتور</a></p>
  <?php endforeach; ?>
  </section><section class="pfb-card"><h2>گزینه‌های نمایش</h2><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><?php wp_nonce_field('pfb_e_options'); ?><input type="hidden" name="action" value="pfb_e_options"><label><input type="checkbox" name="visual_chrome" value="1" <?php checked(get_theme_mod('pfb_visual_chrome',false)); ?>> استفاده از سربرگ و فوتر المنتوری (انتشار این دو الگو)</label><label><input type="checkbox" name="sticky_header" value="1" <?php checked(get_theme_mod('pfb_sticky_header',false)); ?>> سربرگ هنگام اسکرول ثابت بماند</label><label><input type="checkbox" name="back_top" value="1" <?php checked(get_theme_mod('pfb_back_top',false)); ?>> نمایش دکمه شناور بازگشت به بالا</label><?php submit_button('ذخیره گزینه‌ها'); ?></form><p><a class="button" href="<?php echo esc_url(admin_url('customize.php')); ?>">لوگو، فهرست و تنظیمات حالت کلاسیک</a></p></section>
- <section class="pfb-card"><h2>نمونه‌کارها و نوشته‌های وردپرس</h2><p>کارت‌های صفحه المنتوری را مستقیماً در المنتور ویرایش، حذف یا تکثیر کنید. برای داشتن صفحه مستقل هر پروژه و آرشیو، پروژه‌های ویزارد را به پیش‌نویس نوشته‌ها منتقل کنید. کارت‌های المنتور و نوشته‌ها مستقل‌اند؛ پیوند کارت را می‌توانید به صفحه نوشته متصل کنید.</p>
+ <section class="pfb-card"><h2>نمونه‌کارها و نوشته‌های وردپرس</h2><p>کارت‌های صفحه المنتوری را مستقیماً در المنتور ویرایش، حذف یا تکثیر کنید. راه‌انداز، فهرست نمونه‌کارها، جزئیات هر پروژه و پلن‌های فعال را به‌صورت برگه‌های قابل ویرایش می‌سازد. ورود پروژه‌ها به نوشته‌ها اختیاری است.</p>
  <?php if(current_user_can('manage_options') && current_user_can('edit_posts') && current_user_can('upload_files')) : ?><form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>"><?php wp_nonce_field('pfb_import'); ?><input type="hidden" name="action" value="pfb_import"><?php submit_button('ورود پروژه‌ها به پیش‌نویس نوشته‌ها','secondary'); ?></form><?php endif; ?>
  </section><section class="pfb-card"><h2>راهنمای ویرایش</h2><p>پس از راه‌اندازی، محتوای صفحه، سربرگ و فوتر را از المنتور تغییر دهید. تنظیمات مشخصات در سفارشی‌سازی، محتوای حالت کلاسیک را تغییر می‌دهند و صفحه المنتوری ویرایش‌شده را بازنویسی نمی‌کنند.</p><p>پشتیبانی از محل‌های Theme Builder المنتور پرو نیز در قالب وجود دارد؛ اگر برای سربرگ یا فوتر شرط نمایش پرو تعیین کنید، همان طرح پرو اولویت دارد. افزونه پرو همراه این بسته نیست.</p><p>خروجی وب‌سایت HTML مستقل نیز از ویزارد همچنان قابل دریافت است.</p></section></div></div>
  <?php

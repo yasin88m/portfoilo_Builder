@@ -1,3 +1,4 @@
+import { siteLinks } from './public/site-pages.js';
 import { randomBytes, timingSafeEqual, scrypt } from 'node:crypto';
 import { normalize, portfolioHTML } from './public/shared.js';
 
@@ -125,11 +126,16 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
    return json(res, 200, { ok: true });
   }
   if (/^\/api\/sites(?:\/[^/]+)?$/.test(path)) return sites(req, res, path);
-  const match = /^\/sites\/([a-f0-9]{32})\/([a-f0-9]{32})$/.exec(path);
+  const match = /^\/sites\/([a-f0-9]{32})\/([a-f0-9]{32})(?:\/(plans|projects)(?:\/([a-z0-9-]{1,48}))?)?$/.exec(path);
   if (match && ['GET','HEAD'].includes(req.method)) {
    const row = await records.read('site:' + match[1] + ':' + match[2]);
    if (!row?.value.published) return responseError(res, 404, 'این سایت در دسترس نیست.');
-   const html = portfolioHTML(row.value.published).replace('</body>', '<aside style="text-align:center;background:#17152a;color:#fff;padding:14px;font:inherit"><a href="/" style="color:#fff">✦ ساخته‌شده با پورتفولیو بیلدر</a></aside></body>');
+   const p = normalize(row.value.published);
+   const [,owner,site,section,project] = match;
+   if ((section==='plans' && (!p.plans.enabled || project)) || (project && !p.projects.some(item=>item.id===project))) return responseError(res,404,'صفحه پیدا نشد.');
+   const page = section==='plans'?'plans':project|| (section==='projects'?'works':'home');
+   const links = siteLinks(`/sites/${owner}/${site}`);
+   const html = portfolioHTML(p,{page,links}).replace('</body>', '<aside style="text-align:center;background:#17152a;color:#fff;padding:14px;font:inherit"><a href="/" style="color:#fff">✦ ساخته‌شده با پورتفولیو بیلدر</a></aside></body>');
    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'");
    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
    return res.end(req.method === 'HEAD' ? undefined : html);

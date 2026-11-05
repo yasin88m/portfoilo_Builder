@@ -84,3 +84,5 @@ body.preview-expanded{overflow:hidden}
   height: min(63vh, max(160px, calc(100dvh - 200px)), 560px);
  }
 }
+
+#previewPage{max-width:min(24vw,132px);border:1px solid var(--border,#8885);border-radius:8px;padding:5px;background:var(--panel,#20202c);color:inherit;font:inherit}

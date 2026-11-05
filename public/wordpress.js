@@ -32,10 +32,11 @@ export function wordpressFiles(raw){
  const add=(path,content)=>files.push({path:slug+'/'+path,content});
  const seed={...data,headline:data.headline||data.title,labels:Object.fromEntries(Object.keys(textLabels).map(key=>[key,copyFor(data,key)])),colors:resolveColors(data),colorLabels,textLabels};delete seed.domain;delete seed.slug;
  function asset(src,name){if(!src)return '';const match=src.match(/^data:image\/(png|jpeg|webp);base64,(.+)$/);if(!match)throw Error('تصویر خروجی معتبر نیست');const path=`assets/images/${name}.${match[1]==='jpeg'?'jpg':match[1]}`;add(path,decode64(match[2]));return path;}
- seed.avatar=asset(data.avatar,'avatar');seed.cover=asset(data.cover,'cover');seed.projects=data.projects.map((p,i)=>({...p,image:asset(p.image,'project-'+(i+1))}));
- const marker={...data,...Object.fromEntries(textKeys.map(k=>[k,token(k)])),email:'pfbtokenemailend@example.com',social:'https://pfbtokensocialend.example.com/',slug:'pfb-template',domain:'',paletteOverride:data.paletteOverride,avatar:'data:image/png;base64,UEZCQVZBVEFS',cover:'data:image/png;base64,UEZCQ09WRVI=',projects:[{title:'PFBPROJECT',description:'PFBPROJECT',category:'PFBPROJECT',image:'',url:''}]};
+ const links={home:'/#top',works:'?pfb_page=works',plans:'?pfb_page=plans',project:id=>'?pfb_page=project-'+id};
+ seed.avatar=asset(data.avatar,'avatar');seed.cover=asset(data.cover,'cover');seed.projects=data.projects.map((p,i)=>({...p,image:asset(p.image,'project-'+(i+1)),gallery:p.gallery.map((src,j)=>asset(src,'project-'+(i+1)+'-gallery-'+(j+1)))}));
+ const marker={...data,reviews:[],...Object.fromEntries(textKeys.map(k=>[k,token(k)])),email:'pfbtokenemailend@example.com',social:'https://pfbtokensocialend.example.com/',slug:'pfb-template',domain:'',paletteOverride:data.paletteOverride,avatar:'data:image/png;base64,UEZCQVZBVEFS',cover:'data:image/png;base64,UEZCQ09WRVI=',projects:[{title:'PFBPROJECT',description:'PFBPROJECT',category:'PFBPROJECT',image:'',url:''}]};
  marker.design={...data.design,text:Object.fromEntries(Object.keys(textLabels).map(key=>[key,'PFBLABEL'+key.toUpperCase()+'END']))};
- const html=portfolioHTML(marker);
+ const html=portfolioHTML(marker,{links});
  let css=html.match(/<style>([\s\S]*?)<\/style>/)[1];
  let fontIndex=0;css=css.replace(/url\(data:font\/(woff2?);base64,([A-Za-z0-9+/=]+)\)/g,(_,ext,b64)=>{const path=`assets/fonts/vazirmatn-${++fontIndex}.${ext}`;add(path,decode64(b64));return `url('${path}')`;});
  const inline=html.match(/<body[^>]*style="([^"]+)"/)[1];
@@ -52,9 +53,20 @@ export function wordpressFiles(raw){
  add('portfolio-data.json',JSON.stringify(seed,null,2));add('functions.php',functionsPHP+socialPHP+"\nrequire_once get_template_directory() . '/inc/elementor.php';\n");
  add('inc/elementor.php',elementorPHP);
  const docs=elementorTemplates(seed);for(const [role,doc] of Object.entries(docs))add('elementor/'+role+'.json',JSON.stringify(doc,null,2));
- let fallback=portfolioHTML(data).match(/<main>([\s\S]*)<\/main>/)[1];
+ let fallback=portfolioHTML(data,{links}).match(/<main>([\s\S]*)<\/main>/)[1];
  if(data.avatar)fallback=fallback.replaceAll(data.avatar,seed.avatar);if(data.cover)fallback=fallback.replaceAll(data.cover,seed.cover);data.projects.forEach((project,i)=>{if(project.image)fallback=fallback.replaceAll(project.image,seed.projects[i].image);});
  add('elementor/fallback.html',fallback);
+ const roles={works:'works',...(data.plans.enabled?{plans:'plans'}:{}),...Object.fromEntries(data.projects.filter(project=>project.title).map(project=>['project-'+project.id,project.id]))};
+ for(const [role,page] of Object.entries(roles)){
+  let markup=portfolioHTML(data,{page,links}).match(/<main>([\s\S]*)<\/main>/)[1];
+  data.projects.forEach((project,i)=>{
+   if(project.image)markup=markup.replaceAll(project.image,seed.projects[i].image);
+   project.gallery.forEach((src,j)=>{markup=markup.replaceAll(src,seed.projects[i].gallery[j]);});
+  });
+  add('site-pages/'+role+'.html',markup);
+ }
+ const reviews=portfolioHTML(data,{links}).match(/<section class="section site-reviews"[\s\S]*?<\/section>/)?.[0]||'';
+ add('site-pages/reviews.html',reviews);
  add('header.php',`<?php if (!defined('ABSPATH')) { exit; } ?><!doctype html>\n<html <?php language_attributes(); ?>><head><meta charset="<?php bloginfo('charset'); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="<?php echo esc_attr(wp_strip_all_tags(pfb_value('bio'))); ?>"><?php wp_head(); ?></head><body <?php body_class('${bodyClasses}'); ?> style="${bodyStyle}"><?php wp_body_open(); ?><a class="pfb-skip" href="#content">رفتن به محتوای اصلی</a><div id="top"></div><?php if (function_exists('elementor_theme_do_location') && elementor_theme_do_location('header')) { return; } if (pfb_e_available() && get_theme_mod('pfb_visual_chrome',false)) { ob_start(); $pfb_header=pfb_e_render_location('header'); $pfb_markup=ob_get_clean(); if ($pfb_header) { echo '<header class="pfb-visual-header">'.$pfb_markup.'</header>'; return; } } ?><header class="site-header"><div class="logo"><?php if (has_custom_logo()) { the_custom_logo(); } else { ?><a href="<?php echo esc_url(home_url('/')); ?>">✦ <?php echo esc_html(pfb_value('name')); ?></a><?php } ?></div><nav aria-label="فهرست اصلی"><?php wp_nav_menu(array('theme_location'=>'primary','container'=>false,'fallback_cb'=>'pfb_nav_fallback','depth'=>2)); ?></nav><a class="button nav-cta" href="<?php echo esc_url(home_url('/' . pfb_target('contact'))); ?>"><?php echo esc_html(pfb_label('navButton')); ?> ↗</a></header>\n`);
  add('footer.php',`<?php if (!defined('ABSPATH')) { exit; } ?><?php $pfb_footer=function_exists('elementor_theme_do_location') && elementor_theme_do_location('footer'); if (!$pfb_footer && pfb_e_available() && get_theme_mod('pfb_visual_chrome',false)) { ob_start(); $pfb_footer=pfb_e_render_location('footer'); $pfb_markup=ob_get_clean(); if ($pfb_footer) { echo '<footer class="pfb-visual-footer">'.$pfb_markup.'</footer>'; } } if (!$pfb_footer) : ?><footer><span><?php echo esc_html(pfb_value('name')); ?> · <?php echo esc_html(pfb_value('title')); ?></span><span><?php echo esc_html(pfb_label('footerText')); ?></span><?php pfb_social_footer(); ?></footer><?php endif; wp_footer(); ?></body></html>\n`);
  let main=html.match(/<main>([\s\S]*)<\/main>/)[1];
@@ -77,7 +89,7 @@ export function wordpressFiles(raw){
  if(['codecraft','learnhouse'].includes(data.template))main=main.replaceAll(token('experience'),"<?php echo esc_html(pfb_value('experience') ?: pfb_value('bio')); ?>");
  for(const key of Object.keys(textLabels))main=main.replaceAll('PFBLABEL'+key.toUpperCase()+'END',`<?php echo nl2br(esc_html(pfb_label('${key}'))); ?>`);
  for(const key of textKeys.filter(k=>!['email','social'].includes(k)))main=main.replaceAll(token(key),phpText(key));
- add('front-page.php',`<?php if (!defined('ABSPATH')) { exit; } get_header(); if (is_page()) { ?><main id="content" class="pfb-elementor-content" dir="rtl"><?php while (have_posts()) : the_post(); the_content(); endwhile; ?></main><?php get_footer(); return; } ?><main id="content" class="pfb-portfolio" dir="rtl">${main}</main><?php get_footer(); ?>\n`);
+ add('front-page.php',`<?php if (!defined('ABSPATH')) { exit; } get_header(); if (is_page()) { ?><main id="content" class="pfb-elementor-content" dir="rtl"><?php while (have_posts()) : the_post(); the_content(); endwhile; ?></main><?php get_footer(); return; } ?><main id="content" class="pfb-portfolio" dir="rtl">${main}<?php pfb_site_reviews(); ?></main><?php get_footer(); ?>\n`);
  add('page.php',`<?php if (!defined('ABSPATH')) { exit; } get_header(); if (function_exists('elementor_theme_do_location') && elementor_theme_do_location('single')) { get_footer(); return; } ?><main id="content" class="pfb-elementor-content" dir="rtl"><?php while (have_posts()) : the_post(); if (!get_post_meta(get_the_ID(),'_elementor_edit_mode',true)) { ?><article class="wp-content"><h1><?php the_title(); ?></h1><?php the_content(); wp_link_pages(); ?></article><?php } else { the_content(); } endwhile; ?></main><?php get_footer(); ?>\n`);
  const entry=`<article <?php post_class('post-card'); ?>><h2><a href="<?php the_permalink(); ?>"><?php the_title(); ?></a></h2><?php if (has_post_thumbnail()) { the_post_thumbnail('large'); } ?><div class="pfb-meta"><?php echo esc_html(get_the_date()); ?></div><?php the_excerpt(); ?></article>`;
  add('index.php',`<?php if (!defined('ABSPATH')) { exit; } get_header(); if (function_exists('elementor_theme_do_location') && elementor_theme_do_location('archive')) { get_footer(); return; } ?><main id="content" class="wp-content"><h1><?php if (is_search()) { printf(esc_html__('Search: %s','portfolio-builder'), esc_html(get_search_query())); } elseif (is_archive()) { the_archive_title(); } else { esc_html_e('نوشته‌ها','portfolio-builder'); } ?></h1><?php if (have_posts()) : while (have_posts()) : the_post(); ?>${entry}<?php endwhile; the_posts_pagination(); else : ?><p>موردی پیدا نشد.</p><?php get_search_form(); endif; ?></main><?php get_footer(); ?>\n`);

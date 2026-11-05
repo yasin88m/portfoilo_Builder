@@ -39,6 +39,21 @@ function pfb_projects() {
  foreach ($projects as &$project) { if (!empty($project['image'])) { $project['image'] = get_theme_file_uri('/' . $project['image']); } }
  return $projects;
 }
+function pfb_site_url($role) { return add_query_arg('pfb_page',$role,home_url('/')); }
+function pfb_site_reviews() { echo file_get_contents(get_template_directory().'/site-pages/reviews.html'); }
+add_action('template_redirect',function(){
+ if (!isset($_GET['pfb_page']) || !is_string($_GET['pfb_page'])) { return; }
+ $role=wp_unslash($_GET['pfb_page']);
+ if (!preg_match('/^(works|plans|project-[a-z0-9-]{1,48})$/D',$role)) { return; }
+ $file=get_template_directory().'/site-pages/'.$role.'.html';
+ if (!is_readable($file)) { global $wp_query; $wp_query->set_404(); status_header(404); return; }
+ $state=pfb_e_state(); $page=absint($state[$role]??0);
+ if (pfb_e_available() && $page && get_post_status($page)==='publish') { wp_safe_redirect(get_permalink($page)); exit; }
+ $markup=file_get_contents($file);
+ $markup=preg_replace_callback('~src="(assets/images/[a-z0-9.-]+)"~',function($m){return 'src="'.esc_url(get_theme_file_uri('/'.$m[1])).'"';},$markup);
+ $markup=str_replace('href="/#','href="'.esc_url(home_url('/')).'#',$markup);
+ status_header(200); get_header(); echo '<main id="content">'.$markup.'</main>'; get_footer(); exit;
+});
 function pfb_project_cards() {
  $projects = pfb_projects();
  if (!$projects) { echo '<p class="empty">هنوز نمونه‌کاری اضافه نشده است.</p>'; return; }
@@ -48,7 +63,7 @@ function pfb_project_cards() {
  <div class="project-art art-<?php echo absint($i % 3); ?>"><span><?php echo esc_html($i + 1); ?></span><b><?php echo esc_html($project['title']); ?></b><i>✧</i></div><?php endif; ?>
  <span class="category"><?php echo esc_html($project['category']); ?></span></div>
  <div class="project-info"><h3><?php echo esc_html($project['title']); ?></h3><p><?php echo esc_html($project['description']); ?></p>
- <?php if (!empty($project['url'])) : ?><a href="<?php echo esc_url($project['url']); ?>">مشاهده پروژه ↗</a><?php endif; ?></div></article>
+ <?php if (!empty($project['id'])) : ?><a href="<?php echo esc_url(pfb_site_url('project-'.$project['id'])); ?>">جزئیات پروژه ↗</a><?php elseif (!empty($project['url'])) : ?><a href="<?php echo esc_url($project['url']); ?>">مشاهده پروژه ↗</a><?php endif; ?></div></article>
  <?php }
 }
 function pfb_skill_strip() { foreach (pfb_lines('skills') as $skill) { echo '<span><i aria-hidden="true">✧</i>' . esc_html($skill) . '</span>'; } }
@@ -82,7 +97,7 @@ add_filter('body_class','pfb_body_design');
 function pfb_assets() { wp_enqueue_style('portfolio-builder', get_stylesheet_uri(), array(), wp_get_theme()->get('Version')); if (is_singular() && comments_open() && get_option('thread_comments')) { wp_enqueue_script('comment-reply'); } }
 add_action('wp_enqueue_scripts', 'pfb_assets');
 function pfb_nav_fallback() {
- echo '<ul>'; $seed=pfb_seed(); foreach (array('about'=>'navAbout','projects'=>'navProjects','contact'=>'navContact') as $section=>$label) { if (($seed['design']['sections'][$section] ?? true) !== false) { echo '<li><a href="'.esc_url(home_url('/#'.$section)).'">'.esc_html(pfb_label($label)).'</a></li>'; } } echo '</ul>';
+ echo '<ul>'; $seed=pfb_seed(); foreach (array('about'=>'navAbout','projects'=>'navProjects','contact'=>'navContact') as $section=>$label) { if (($seed['design']['sections'][$section] ?? true) !== false) { echo '<li><a href="'.esc_url($section==='projects'?pfb_site_url('works'):home_url('/#'.$section)).'">'.esc_html(pfb_label($label)).'</a></li>'; } } if (!empty($seed['plans']['enabled'])) { echo '<li><a href="'.esc_url(pfb_site_url('plans')).'">پلن‌ها</a></li>'; } echo '</ul>';
 }
 function pfb_customize($wp_customize) {
  $wp_customize->add_section('pfb_profile', array('title'=>'اطلاعات پورتفولیو', 'priority'=>30));
