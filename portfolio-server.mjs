@@ -77,6 +77,7 @@ async function indexAdminUser(user, type, isNew = false) {
 
 async function indexGitHubPortfolio(user, portfolio, published) {
  if (!user || !portfolio) return;
+ await indexAdminUser(user, 'github', false);
  const key = 'site:' + String(user.id) + ':github';
  const old = await records.read(key);
  const updated = Date.now();
@@ -215,6 +216,7 @@ return http.createServer(async(req,res)=>{
   const admin = await authenticatedUser(req);
   if (!admin) return json(res, 401, { error: 'برای مشاهده پنل ابتدا وارد حساب کاربری شو.' });
   if (!adminAccess(admin)) return json(res, 403, { error: 'این حساب اجازه دسترسی به پنل مدیریت را ندارد.' });
+  await indexAdminUser(admin, await session(req) ? 'github' : 'account', false);
   const userRows = await records.list('admin:user:');
   const users = userRows.map(row => ({
    id: String(row.id), login: row.login || '', type: row.type || 'account',
