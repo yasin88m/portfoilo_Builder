@@ -14,7 +14,7 @@ test('all six WordPress themes have native templates, hooks, editable data and n
   for(const required of ['style.css','index.php','functions.php','front-page.php','header.php','footer.php','singular.php','comments.php','404.php','theme.json','rtl.css','portfolio-data.json','readme.txt'])assert.ok(get(required),required);
   assert.match(get('style.css'),/Theme Name:/);assert.match(get('header.php'),/wp_head\(\)/);assert.match(get('header.php'),/wp_body_open\(\)/);assert.match(get('footer.php'),/wp_footer\(\)/);
   assert.match(get('functions.php'),/customize_register/);assert.match(get('functions.php'),/get_the_post_thumbnail_url/);assert.match(get('functions.php'),/wp_insert_post/);assert.match(get('functions.php'),/check_admin_referer/);
-  assert.match(get('front-page.php'),/pfb_project_cards\(\)/);assert.ok(!get('front-page.php').includes('<iframe'));
+  assert.match(get('front-page.php'),/class="project-grid portfolio-carousel"/);assert.ok(!get('front-page.php').includes('<iframe'));
   for(const file of files)if(typeof file.content==='string'&&file.path.endsWith('.php'))assert.doesNotMatch(file.content,/PFBTOKEN|PFBPROJECT|UEZCQVZBVEFS|UEZCQ09WRVI=/);
   const seed=JSON.parse(get('portfolio-data.json'));assert.equal(seed.name,sample.name);assert.equal(seed.projects[0].title,'اول');assert.equal(seed.headline,sample.title);assert.equal(JSON.parse(get('theme.json')).version,2);
   assert.equal(files.filter(f=>f.path.endsWith('.woff')).length,2);
