@@ -198,3 +198,12 @@ docker run --env-file .env -p 3000:3000 portfoilo-builder
 از «ورود / حساب من» حساب بسازید. در مرحله آخر ویزارد، «ذخیره در حساب من» پیش‌نویس را در پنل اضافه می‌کند و «انتشار و ساخت لینک» یک صفحه عمومی با نشان پورتفولیو بیلدر می‌سازد. ذخیره پیش‌نویس نسخه عمومی را عوض نمی‌کند. نسخه عمومی را از همان مرحله می‌توان به‌روزرسانی کرد یا از دسترس خارج کرد.
 
 در Cloudflare، حساب‌ها و سایت‌ها در Durable Objects ذخیره می‌شوند و GitHub مخزن کد است. ورود جدید به OAuth گیت‌هاب نیاز ندارد. اجرای محلی Node برای توسعه است و داده‌های حساب را در حافظه نگه می‌دارد.
+
+
+## Admin dashboard
+
+- Open `/admin` on the deployed site.
+- The dashboard is restricted to the GitHub account that owns the connected repository. Additional administrators can be allowed with the Worker secrets `ADMIN_LOGINS` (GitHub usernames) or `ADMIN_USER_IDS` (stable account IDs).
+- User and site records are indexed when users sign in or access their saved portfolio. Existing users who have not signed in since the dashboard was enabled will appear after their next sign-in.
+- Site page views are counted from the time analytics tracking is enabled; historical views are not reconstructed.
+- The current quota dashboard reports the two successful background-removal attempts per account. AI model token accounting is not enabled in this version.
