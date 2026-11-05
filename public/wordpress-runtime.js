@@ -11,7 +11,22 @@ function pfb_image($key) {
  if (!$value) { return ''; }
  return strpos($value, 'assets/') === 0 ? get_theme_file_uri('/' . $value) : esc_url_raw($value);
 }
-function pfb_lines($key) { return array_values(array_filter(array_map('trim', preg_split('/[,،\r\n]+/u', pfb_value($key))))); }
+function pfb_label($key) { $seed=pfb_seed(); if ($key === 'heroTitle' && !isset($seed['design']['text']['heroTitle']) && get_theme_mod('pfb_label_heroTitle',null) === null) { return 'سلام، من'."\n".pfb_value('name').' هستم.'; } return get_theme_mod('pfb_label_'.$key, $seed['labels'][$key] ?? ''); }
+function pfb_color($key) { $seed=pfb_seed(); return sanitize_hex_color(get_theme_mod('pfb_color_'.$key, $seed['colors'][$key] ?? '#7552ed')) ?: '#7552ed'; }
+function pfb_target($key) { $seed=pfb_seed(); $hidden=$seed['design']['sections'] ?? array(); if (($hidden[$key] ?? true) !== false) { return '#'.$key; } foreach (array_merge($seed['design']['order'] ?? array(),array('about','skills','projects','services','contact')) as $section) { if (($hidden[$section] ?? true) !== false) { return '#'.$section; } } return '#top'; }
+function pfb_skill_entries() {
+ $seed=pfb_seed(); $map=array(); foreach (($seed['skillLevels'] ?? array()) as $skill) { $map[$skill['name']]=$skill['percent']; }
+ $entries=array(); foreach (array_filter(array_map('trim',preg_split('/[,،\r\n]+/u',pfb_value('skills')))) as $raw) {
+  $name=$raw; $percent=$map[$name] ?? 0;
+  if (preg_match('/^(.*?)(?:\s*[:：|]\s*([0-9۰-۹٠-٩]{1,3})\s*[%٪]?|\s+([0-9۰-۹٠-٩]{1,3})\s*[%٪])$/u',$raw,$match)) {
+   $name=trim($match[1]); $number=$match[2] ?: ($match[3] ?? '0');
+   $percent=(int)strtr($number,array('۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9','٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9'));
+  }
+  if (pfb_value('skills') === ($seed['skills'] ?? '') && isset($map[$name])) { $percent=$map[$name]; }
+  if ($name !== '') { $entries[]=array('name'=>$name,'percent'=>max(0,min(100,(int)$percent))); }
+ } return array_slice($entries,0,40);
+}
+function pfb_lines($key) { if ($key === 'skills') { return array_column(pfb_skill_entries(),'name'); } return array_values(array_filter(array_map('trim', preg_split('/[,،\r\n]+/u', pfb_value($key))))); }
 function pfb_projects() {
  $category = absint(get_theme_mod('pfb_project_category', 0));
  if ($category) {
@@ -37,11 +52,19 @@ function pfb_project_cards() {
  <?php }
 }
 function pfb_skill_strip() { foreach (pfb_lines('skills') as $skill) { echo '<span><i aria-hidden="true">✧</i>' . esc_html($skill) . '</span>'; } }
-function pfb_skill_cards() { foreach (pfb_lines('skills') as $skill) { echo '<div class="skill-item"><span class="skill-symbol" aria-hidden="true">✧</span><div><b>' . esc_html($skill) . '</b><div class="skill-line"></div></div></div>'; } }
+function pfb_skill_cards() {
+ foreach (pfb_skill_entries() as $skill) {
+  echo '<div class="skill-item"><span class="skill-symbol" aria-hidden="true">✧</span><div><div class="skill-label"><b>'.esc_html($skill['name']).'</b>';
+  if (pfb_value('skillsMode') === 'percent') { echo '<span>'.esc_html(number_format_i18n($skill['percent'])).'٪</span>'; }
+  echo '</div>';
+  if (pfb_value('skillsMode') === 'percent') { echo '<div class="skill-track" role="progressbar" aria-label="'.esc_attr($skill['name']).'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'.(int)$skill['percent'].'"><span style="width:'.(int)$skill['percent'].'%"></span></div>'; }
+  echo '</div></div>';
+ }
+}
 function pfb_service_cards() {
  $items = array_values(array_filter(array_map('trim', preg_split('/[\r\n]+/u', pfb_value('services')))));
  if (!$items) { $items = pfb_lines('skills'); }
- foreach ($items as $service) { echo '<article><span class="service-icon" aria-hidden="true">✦</span><h3>' . esc_html($service) . '</h3><a href="#contact">درباره این خدمت بپرسید ↗</a></article>'; }
+ foreach ($items as $service) { echo '<article><span class="service-icon" aria-hidden="true">✦</span><h3>' . esc_html($service) . '</h3><a href="' . esc_attr(pfb_target('contact')) . '">' . esc_html(pfb_label('serviceButton')) . ' ↗</a></article>'; }
 }
 function pfb_setup() {
  load_theme_textdomain('portfolio-builder', get_template_directory() . '/languages');
@@ -54,10 +77,12 @@ function pfb_setup() {
 add_action('after_setup_theme', 'pfb_setup');
 function pfb_document_title($parts) { if (is_front_page()) { $parts['title']=pfb_value('name'); $parts['tagline']=pfb_value('title'); } return $parts; }
 add_filter('document_title_parts','pfb_document_title');
+function pfb_body_design($classes) { $seed=pfb_seed(); foreach (array_keys($seed['colors'] ?? array()) as $key) { if (get_theme_mod('pfb_color_'.$key,null) !== null) { $classes[]='custom-'.$key; } } return $classes; }
+add_filter('body_class','pfb_body_design');
 function pfb_assets() { wp_enqueue_style('portfolio-builder', get_stylesheet_uri(), array(), wp_get_theme()->get('Version')); if (is_singular() && comments_open() && get_option('thread_comments')) { wp_enqueue_script('comment-reply'); } }
 add_action('wp_enqueue_scripts', 'pfb_assets');
 function pfb_nav_fallback() {
- echo '<ul><li><a href="' . esc_url(home_url('/#about')) . '">درباره من</a></li><li><a href="' . esc_url(home_url('/#projects')) . '">نمونه‌کارها</a></li><li><a href="' . esc_url(home_url('/#contact')) . '">تماس</a></li></ul>';
+ echo '<ul>'; $seed=pfb_seed(); foreach (array('about'=>'navAbout','projects'=>'navProjects','contact'=>'navContact') as $section=>$label) { if (($seed['design']['sections'][$section] ?? true) !== false) { echo '<li><a href="'.esc_url(home_url('/#'.$section)).'">'.esc_html(pfb_label($label)).'</a></li>'; } } echo '</ul>';
 }
 function pfb_customize($wp_customize) {
  $wp_customize->add_section('pfb_profile', array('title'=>'اطلاعات پورتفولیو', 'priority'=>30));
@@ -72,8 +97,17 @@ function pfb_customize($wp_customize) {
   $wp_customize->add_setting('pfb_' . $key, array('default'=>pfb_image($key),'sanitize_callback'=>'esc_url_raw'));
   $wp_customize->add_control(new WP_Customize_Image_Control($wp_customize, 'pfb_' . $key, array('label'=>$label,'section'=>'pfb_profile')));
  }
- $wp_customize->add_setting('pfb_accent', array('default'=>pfb_value('accent'),'sanitize_callback'=>'sanitize_hex_color'));
- $wp_customize->add_control(new WP_Customize_Color_Control($wp_customize, 'pfb_accent', array('label'=>'رنگ تأکیدی','section'=>'pfb_profile')));
+ $wp_customize->add_section('pfb_design',array('title'=>'رنگ‌ها و متن‌های قالب','priority'=>31));
+ $seed=pfb_seed(); foreach (($seed['colors'] ?? array()) as $key=>$value) {
+  $wp_customize->add_setting('pfb_color_'.$key,array('default'=>$value,'sanitize_callback'=>'sanitize_hex_color'));
+  $wp_customize->add_control(new WP_Customize_Color_Control($wp_customize,'pfb_color_'.$key,array('label'=>$seed['colorLabels'][$key] ?? $key,'section'=>'pfb_design')));
+ }
+ foreach (($seed['labels'] ?? array()) as $key=>$value) {
+  $wp_customize->add_setting('pfb_label_'.$key,array('default'=>$value,'sanitize_callback'=>'sanitize_textarea_field'));
+  $wp_customize->add_control('pfb_label_'.$key,array('label'=>$seed['textLabels'][$key] ?? $key,'type'=>'textarea','section'=>'pfb_design'));
+ }
+ $wp_customize->add_setting('pfb_skillsMode',array('default'=>pfb_value('skillsMode'),'sanitize_callback'=>function($value){return $value==='percent'?'percent':'list';}));
+ $wp_customize->add_control('pfb_skillsMode',array('label'=>'نمایش مهارت‌ها؛ درصد را مثل طراحی:50 در مهارت‌ها بنویسید','section'=>'pfb_profile','type'=>'select','choices'=>array('list'=>'فهرست عادی','percent'=>'نوار درصدی')));
  $wp_customize->add_setting('pfb_project_category', array('default'=>0,'sanitize_callback'=>'absint'));
  $choices = array(0=>'نمونه‌کارهای واردشده از ویزارد'); foreach (get_categories(array('hide_empty'=>false)) as $category) { $choices[$category->term_id]=$category->name; }
  $wp_customize->add_control('pfb_project_category', array('label'=>'دسته نوشته‌های نمونه‌کار','description'=>'برای مدیریت پویا، یک دسته انتخاب کنید؛ نوشته‌های منتشرشده آن همراه تصویر شاخص و چکیده نمایش داده می‌شوند.','section'=>'pfb_profile','type'=>'select','choices'=>$choices));
