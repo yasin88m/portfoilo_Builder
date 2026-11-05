@@ -94,7 +94,7 @@ async function managePublication(req, res) {
 function redirect(res,url,headers={}){res.writeHead(302,{Location:url,...headers});res.end();}
 const accounts = accountRoutes({ records, store, origin, cookies, cookie, json, body });
 return http.createServer(async(req,res)=>{
- res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'");
+ res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self' https://esm.sh https://cdn.esm.sh 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; worker-src 'self' blob:; connect-src 'self' https://esm.sh https://cdn.esm.sh https://staticimgly.com https://cdn.jsdelivr.net; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'");
  try{
  const url=new URL(req.url,origin),path=url.pathname;
  const now = Date.now();
