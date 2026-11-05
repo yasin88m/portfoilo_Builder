@@ -81,9 +81,10 @@ function pfb_customize($wp_customize) {
  $wp_customize->add_control('pfb_project_label', array('label'=>'عنوان دسته کارت‌ها','section'=>'pfb_profile'));
 }
 add_action('customize_register', 'pfb_customize');
-function pfb_admin_menu() { add_theme_page('راهنمای پورتفولیو','راهنمای پورتفولیو','edit_theme_options','pfb-help','pfb_help'); }
+function pfb_admin_menu() { add_theme_page('راهنمای پورتفولیو','راه‌اندازی پورتفولیو','edit_theme_options','pfb-help','pfb_help'); }
 add_action('admin_menu','pfb_admin_menu');
 function pfb_help() {
+ if (function_exists('pfb_e_dashboard')) { pfb_e_dashboard(); return; }
  if (!current_user_can('edit_theme_options')) { return; } ?>
  <div class="wrap" dir="rtl"><h1>پورتفولیوی شما آماده است</h1>
  <p>مشخصات، عکس‌ها و رنگ را از «نمایش ← سفارشی‌سازی ← اطلاعات پورتفولیو» تغییر دهید. فهرست اصلی نیز از بخش «فهرست‌ها» قابل ویرایش است.</p>
