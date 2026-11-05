@@ -12,8 +12,68 @@ try{const saved=localStorage.getItem(key);if(saved)data={...data,...normalize(JS
 const requested=new URLSearchParams(location.search).get('template');if(templates.includes(requested))data.template=requested;
 const names=['اطلاعات شما','نمونه‌کارها','قالب و رنگ','دامنه و خروجی'];const descriptions=['با معرفی خودت شروع کن؛ اینجا نقطه آغاز داستان توست.','بهترین کارهایت را انتخاب کن؛ کیفیت مهم‌تر از تعداد است.','ظاهر وب‌سایتت را با سلیقه و تخصص خودت هماهنگ کن.','آدرس دلخواه را ثبت کن و سایتت را برای انتشار تحویل بگیر.'];
 function toast(t){$('#toast').textContent=t;$('#toast').style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('#toast').style.display='none',4500);}
-function save(){try{localStorage.setItem(key,JSON.stringify(data));$('#saveState').textContent='ذخیره شد · روی این دستگاه';}catch{toast('حافظه مرورگر پر است؛ پشتیبان اطلاعات را دریافت کنید.');}}
-function preview(){try{$('#preview').srcdoc=portfolioHTML({...data,domain:'',email:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)?data.email:'',slug:'my-portfolio'}).replace('</body>','<style>html{scrollbar-width:none;scroll-behavior:auto}::-webkit-scrollbar{display:none}</style><script src="/preview-bridge.js"></script></body>');$('#previewAddress').textContent=data.domain||`${data.slug||'your-name'}.portfolio`;}catch{}}
+let saveTimer = 0;
+function flushSave() {
+ clearTimeout(saveTimer);
+ saveTimer = 0;
+ try {
+  localStorage.setItem(key, JSON.stringify(data));
+  $('#saveState').textContent = 'ذخیره شد · روی این دستگاه';
+ } catch {
+  toast('حافظه مرورگر پر است؛ پشتیبان اطلاعات را دریافت کنید.');
+ }
+}
+function save() {
+ clearTimeout(saveTimer);
+ saveTimer = setTimeout(flushSave, 300);
+}
+addEventListener('pagehide', () => { if (saveTimer) flushSave(); });
+
+const previewFrame = $('#preview');
+let previewTimer = 0;
+let previewPort;
+let lastView;
+
+function preview() {
+ if (!previewTimer) previewTimer = setTimeout(updatePreview, 100);
+}
+
+function updatePreview() {
+ previewTimer = 0;
+ try {
+  const html = portfolioHTML({
+   ...data,
+   domain: '',
+   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email) ? data.email : '',
+   slug: 'my-portfolio'
+  });
+  const [, className, style, markup] = /<body class="([^"]*)" style="([^"]*)">([\s\S]*)<\/body>/.exec(html);
+  $('#previewAddress').textContent = data.domain || `${data.slug || 'your-name'}.portfolio`;
+  if (!previewPort) return;
+  const view = { type: 'portfolio:update' };
+  if (!lastView) view.stylesheet = /<style>([\s\S]*?)<\/style>/.exec(html)[1];
+  if (lastView?.className !== className) view.className = className;
+  if (lastView?.style !== style) view.style = style;
+  if (lastView?.markup !== markup) view.markup = markup;
+  if (Object.keys(view).length > 1) previewPort.postMessage(view);
+  lastView = { className, style, markup };
+ } catch {
+  // Keep the last valid preview while input is incomplete.
+ }
+}
+
+addEventListener('message', event => {
+ if (previewPort || event.source !== previewFrame.contentWindow || event.data?.type !== 'portfolio:ready' || !event.ports[0]) return;
+ previewPort = event.ports[0];
+ preview();
+});
+
+function connectPreview() {
+ if (!previewPort) previewFrame.contentWindow?.postMessage({ type: 'portfolio:hello' }, '*');
+}
+previewFrame.addEventListener('load', connectPreview);
+connectPreview();
+
 function field(label,name,type='text',full=false){return `<label class="field ${full?'full':''}">${label}${type==='textarea'?`<textarea data-key="${name}" rows="3" maxlength="3000">${e(data[name])}</textarea>`:`<input data-key="${name}" type="${type}" value="${e(data[name])}" ${['email','url'].includes(type)?'dir="ltr"':''} maxlength="600">`}</label>`;}
 let onlineConfigured = null;
 let publication = null;

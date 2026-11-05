@@ -1,6 +1,6 @@
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
-import {randomBytes,createHmac,timingSafeEqual} from 'node:crypto';
+import {randomBytes,createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {normalize,portfolioHTML} from './public/shared.js';
 const env=process.env,portArg=process.argv.indexOf('--port'),port=Number(env.PORT||(portArg>=0?process.argv[portArg+1]:3000)),origin=env.APP_ORIGIN||`http://localhost:${port}`;
@@ -124,6 +124,14 @@ export const server=http.createServer(async(req,res)=>{
   return json(res,405,{error:'روش درخواست مجاز نیست'});
  }
  if(!['GET','HEAD'].includes(req.method))return json(res,405,{error:'روش درخواست مجاز نیست'});
+ if(path==='/preview-frame'){
+  const bridge=await readFile(new URL('./public/preview-bridge.js',import.meta.url),'utf8');
+  const scriptHash=createHash('sha256').update(bridge).digest('base64');
+  res.setHeader('X-Frame-Options','SAMEORIGIN');
+  res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'sha256-${scriptHash}'; style-src 'unsafe-inline'; img-src data:; font-src data:; frame-ancestors 'self'; base-uri 'none'; form-action 'none'; sandbox allow-scripts`);
+  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});
+  return res.end(req.method==='HEAD'?undefined:`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پیش‌نمایش پورتفولیو</title><style id="portfolio-style"></style><style>html{scrollbar-width:none;scroll-behavior:auto;overflow-anchor:none}::-webkit-scrollbar{display:none}</style></head><body><script>${bridge}</script></body></html>`);
+ }
  const files={'/assets/hero/builder-reference.png':['assets/hero/builder-reference.png','image/png'],'/customize.js':['customize.js','text/javascript'],'/customize-ui.js':['customize-ui.js','text/javascript'],'/elementor.js':['elementor.js','text/javascript'],'/elementor-runtime.js':['elementor-runtime.js','text/javascript'],'/wordpress.js':['wordpress.js','text/javascript'],'/wordpress-runtime.js':['wordpress-runtime.js','text/javascript'],'/zip.js':['zip.js','text/javascript'],'/icons.js':['icons.js','text/javascript'],'/motion.js':['motion.js','text/javascript'],'/builder-scroll.js':['builder-scroll.js','text/javascript'],'/preview-bridge.js':['preview-bridge.js','text/javascript'],'/preview.js':['preview.js','text/javascript'],'/demo.js':['demo.js','text/javascript'],'/assets/demo/man.png':['assets/demo/man.png','image/png'],'/assets/demo/woman.png':['assets/demo/woman.png','image/png'],'/assets/demo/architecture.webp':['assets/demo/architecture.webp','image/webp'],'/assets/demo/dashboard.webp':['assets/demo/dashboard.webp','image/webp'],'/assets/demo/branding.webp':['assets/demo/branding.webp','image/webp'],'/builder':['builder.html','text/html'],'/theme.js':['theme.js','text/javascript'],'/landing.js':['landing.js','text/javascript'],'/font.css':['font.css','text/css'],'/font.js':['font.js','text/javascript'],'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
  if(!files[path])return json(res,404,{error:'صفحه پیدا نشد'});
  const [file,type]=files[path],content=await readFile(new URL(`./public/${file}`,import.meta.url));res.writeHead(200,{'Content-Type':type+(type.startsWith('image/')?'':'; charset=utf-8'),'Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:content);

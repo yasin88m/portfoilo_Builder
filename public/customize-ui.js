@@ -9,8 +9,35 @@ export function bindCustomization(p,changed,render){
  function bindLevels(){levels?.querySelectorAll('[data-skill-percent]').forEach(input=>input.oninput=()=>{p.skillLevels=normalizeSkillLevels(p.skills,p.skillLevels);p.skillLevels[+input.dataset.skillPercent].percent=Math.max(0,Math.min(100,Math.round(Number(input.value)||0)));changed();});}
  if(mode)mode.onchange=()=>{p.skillsMode=mode.value;p.skillLevels=normalizeSkillLevels(p.skills,p.skillLevels);levels.hidden=mode.value!=='percent';levels.innerHTML=skillRows(p);bindLevels();changed();};
  document.querySelector('[data-key="skills"]')?.addEventListener('input',event=>{p.skills=event.target.value;p.skillLevels=normalizeSkillLevels(p.skills,p.skillLevels);if(levels){levels.innerHTML=skillRows(p);bindLevels();}});bindLevels();
- function setColor(key,value){const valid=hexColor(value);if(!valid)return;p.design.colors[key]=valid;const resolved=resolveColors(p);for(const other of Object.keys(colorLabels)){if(other===key)continue;document.querySelector(`[data-design-color="${other}"]`).value=resolved[other];document.querySelector(`[data-color-hex="${other}"]`).value=resolved[other];}document.querySelector(`[data-design-color="${key}"]`).value=valid;document.querySelector(`[data-color-hex="${key}"]`).value=valid;changed();}
- document.querySelectorAll('[data-design-color]').forEach(input=>input.oninput=()=>setColor(input.dataset.designColor,input.value));document.querySelectorAll('[data-color-hex]').forEach(input=>input.oninput=()=>{input.setCustomValidity(hexColor(input.value)?'':'کد رنگ باید مانند #7552ed باشد');if(hexColor(input.value))setColor(input.dataset.colorHex,input.value);});
+ function setColor(key, value, source) {
+  const color = hexColor(value);
+  if (!color || p.design.colors[key] === color) return;
+  p.design.colors[key] = color;
+  const resolved = resolveColors(p);
+  for (const [name, value] of Object.entries(resolved)) {
+   for (const selector of ['data-design-color', 'data-color-hex']) {
+    const field = document.querySelector(`[${selector}="${name}"]`);
+    if (field && field !== source && field.value !== value) field.value = value;
+   }
+  }
+  changed();
+ }
+ document.querySelectorAll('[data-design-color]').forEach(input => {
+  input.oninput = () => setColor(input.dataset.designColor, input.value, input);
+ });
+ document.querySelectorAll('[data-color-hex]').forEach(input => {
+  input.oninput = () => {
+   input.setCustomValidity('');
+   if (/^#[0-9a-f]{6}$/i.test(input.value)) setColor(input.dataset.colorHex, input.value, input);
+  };
+  input.onchange = () => {
+   const color = hexColor(input.value);
+   input.setCustomValidity(color ? '' : 'کد رنگ باید مانند #7552ed باشد');
+   if (!color) return;
+   setColor(input.dataset.colorHex, color, input);
+   input.value = color;
+  };
+ });
  document.querySelectorAll('[data-clear-color]').forEach(button=>button.onclick=()=>{delete p.design.colors[button.dataset.clearColor];changed();render();});
  document.querySelectorAll('[data-design-text]').forEach(input=>input.oninput=()=>{p.design.text[input.dataset.designText]=input.value;changed();});
  document.querySelectorAll('[data-design-number]').forEach(input=>input.oninput=()=>{p.design[input.dataset.designNumber]=Number(input.value);p.design=normalizeDesign(p.design);changed();});
