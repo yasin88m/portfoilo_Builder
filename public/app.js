@@ -111,7 +111,6 @@ connectPreview();
 function field(label,name,type='text',full=false){return `<label class="field ${full?'full':''}">${label}${type==='textarea'?`<textarea data-key="${name}" rows="3" maxlength="3000">${e(data[name])}</textarea>`:`<input data-key="${name}" type="${type}" value="${e(data[name])}" ${['email','url'].includes(type)?'dir="ltr"':''} maxlength="600">`}</label>`;}
 let onlineConfigured = null;
 let publication = null;
-let backgroundRemovalModule = null;
 let backgroundRemovalBusy = false;
 let publicationBusy = false;
 let publicationError = '';
@@ -243,23 +242,31 @@ async function removeAvatarBackground(){
  backgroundRemovalBusy=true;
  const button=$('#removeAvatarBackground'),status=$('#avatarBgStatus');
  if(button)button.disabled=true;
- if(status)status.textContent='در حال آماده‌سازی مدل سبک هوش مصنوعی؛ بار اول حدود ۴۰ مگابایت دانلود می‌شود…';
+ if(status)status.textContent='در حال ارسال تصویر به سرویس امن remove.bg…';
  try{
-  if(!backgroundRemovalModule)backgroundRemovalModule=import('https://esm.sh/@imgly/background-removal@1.7.0?bundle').catch(error=>{backgroundRemovalModule=null;throw error;});
-  const module=await backgroundRemovalModule;
-  const response=await fetch(data.avatar);
-  if(!response.ok)throw Error('خواندن تصویر ممکن نشد.');
-  const source=await response.blob();
-  if(status)status.textContent='هوش مصنوعی در حال تشخیص سوژه و حذف پس‌زمینه است…';
-  const result=await module.default(source,{model:'isnet_quint8',device:'cpu',output:{format:'image/png',quality:1},progress:(key,current,total)=>{if(status&&total>0)status.textContent='دریافت مدل هوش مصنوعی: '+Math.round(current/total*100).toLocaleString('fa')+'٪';}});
+  const response=await fetch('/api/remove-background',{
+   method:'POST',
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({image:data.avatar})
+  });
+  if(!response.ok){
+   let message='حذف پس‌زمینه انجام نشد؛ دوباره تلاش کن.';
+   try{const result=await response.json();if(result.error)message=result.error;}catch{}
+   throw Error(message);
+  }
+  const result=await response.blob();
+  if(!result.type.includes('image/png'))throw Error('پاسخ سرویس تصویر PNG معتبر نیست.');
   data.avatarOriginal ||= data.avatar;
   data.avatar=await pngDataURL(result);
-  save();preview();render();toast('پس‌زمینه حذف شد؛ تصویر شفاف PNG آماده است.');
+  save();preview();render();toast('پس‌زمینه با remove.bg حذف شد؛ تصویر PNG آماده است.');
  }catch(error){
   const message=String(error?.message||'').slice(0,180);
-  toast('حذف پس‌زمینه انجام نشد: '+message);
-  if(status)status.textContent='خطا در پردازش؛ اتصال اینترنت و سازگاری مرورگر را بررسی کن و دوباره تلاش کن.';
- }finally{backgroundRemovalBusy=false;if(button?.isConnected)button.disabled=false;}
+  toast(message);
+  if(status)status.textContent=message;
+ }finally{
+  backgroundRemovalBusy=false;
+  if(button?.isConnected)button.disabled=false;
+ }
 }
 async function pngDataURL(blob){
  const bitmap=await createImageBitmap(blob);
