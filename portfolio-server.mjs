@@ -124,7 +124,7 @@ return http.createServer(async(req,res)=>{
   rate.count++;backgroundRates.set(ip,rate);
   if(rate.count>5)return json(res,429,{error:'تعداد درخواست‌های حذف پس‌زمینه برای این اتصال زیاد است؛ ۱۰ دقیقه دیگر دوباره تلاش کن.'});
   const input=await body(req,5_100_000);
-  const match=/^data:(image\\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input?.image||'');
+  const match=/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input?.image||'');
   if(!match)return json(res,400,{error:'تصویر ارسالی معتبر نیست؛ دوباره تصویر را انتخاب کن.'});
   const mime=match[1],bytes=Buffer.from(match[2],'base64');
   if(!bytes.length||bytes.length>4_000_000)return json(res,413,{error:'حجم تصویر برای پردازش بیش از حد مجاز است.'});
