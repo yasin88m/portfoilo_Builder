@@ -1,5 +1,6 @@
 import {resolveColors,paletteTone,copyFor,textLabels,colorLabels} from './customize.js';
-import {normalize,portfolioHTML} from './shared.js';
+import {icon} from './icons.js';
+import {normalize,portfolioHTML,socialNetworks} from './shared.js';
 import {elementorTemplates} from './elementor.js';
 import {elementorPHP} from './elementor-runtime.js';
 import {functionsPHP} from './wordpress-runtime.js';
@@ -9,6 +10,23 @@ const decode64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 const textKeys=['name','title','field','headline','bio','skills','services','experience','education','location','email','phone','social'];
 const token=k=>'PFBTOKEN'+k.toUpperCase()+'END';
 const phpText=k=>`<?php echo esc_html(pfb_value('${k}')); ?>`;
+const socialPHP = `
+function pfb_social_networks() {
+ return array(
+  ${socialNetworks.map(({key,label,icon:name})=>`'${key}'=>array('${label}','${icon(name)}')`).join(',\n  ')}
+ );
+}
+function pfb_social_footer() {
+ $links = '';
+ foreach (pfb_social_networks() as $key => $network) {
+  $url = esc_url(pfb_value($key), array('http','https'));
+  if (!$url) { continue; }
+  $label = esc_attr($network[0]);
+  $links .= '<a href="'.$url.'" aria-label="'.$label.'" title="'.$label.'" target="_blank" rel="noopener noreferrer">'.$network[1].'</a>';
+ }
+ if ($links) { echo '<nav class="portfolio-social" aria-label="شبکه‌های اجتماعی">'.$links.'</nav>'; }
+}
+`;
 export function wordpressFiles(raw){
  const data=normalize(raw),slug='portfolio-'+(data.slug||'my-portfolio'),files=[];
  const add=(path,content)=>files.push({path:slug+'/'+path,content});
@@ -31,14 +49,14 @@ export function wordpressFiles(raw){
  add('rtl.css','/* The shared stylesheet supports both directions; Persian portfolio sections use RTL. */\n.pfb-portfolio{direction:rtl}\n');
  add('editor-style.css',"@import url('style.css');\n.editor-styles-wrapper{font-family:Vazirmatn,sans-serif;background:#fff;color:#222;line-height:1.9}.editor-styles-wrapper>*{max-width:1080px}\n");
  add('theme.json',JSON.stringify({version:2,settings:{layout:{contentSize:'1080px',wideSize:'1200px'},color:{palette:[{name:'رنگ اصلی',slug:'accent',color:seed.accent}]},typography:{fontFamilies:[{name:'وزیرمتن',slug:'vazirmatn',fontFamily:'Vazirmatn, sans-serif'}]}},styles:{typography:{fontFamily:'var(--wp--preset--font-family--vazirmatn)'}}},null,2));
- add('portfolio-data.json',JSON.stringify(seed,null,2));add('functions.php',functionsPHP+"\nrequire_once get_template_directory() . '/inc/elementor.php';\n");
+ add('portfolio-data.json',JSON.stringify(seed,null,2));add('functions.php',functionsPHP+socialPHP+"\nrequire_once get_template_directory() . '/inc/elementor.php';\n");
  add('inc/elementor.php',elementorPHP);
  const docs=elementorTemplates(seed);for(const [role,doc] of Object.entries(docs))add('elementor/'+role+'.json',JSON.stringify(doc,null,2));
  let fallback=portfolioHTML(data).match(/<main>([\s\S]*)<\/main>/)[1];
  if(data.avatar)fallback=fallback.replaceAll(data.avatar,seed.avatar);if(data.cover)fallback=fallback.replaceAll(data.cover,seed.cover);data.projects.forEach((project,i)=>{if(project.image)fallback=fallback.replaceAll(project.image,seed.projects[i].image);});
  add('elementor/fallback.html',fallback);
  add('header.php',`<?php if (!defined('ABSPATH')) { exit; } ?><!doctype html>\n<html <?php language_attributes(); ?>><head><meta charset="<?php bloginfo('charset'); ?>"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="<?php echo esc_attr(wp_strip_all_tags(pfb_value('bio'))); ?>"><?php wp_head(); ?></head><body <?php body_class('${bodyClasses}'); ?> style="${bodyStyle}"><?php wp_body_open(); ?><a class="pfb-skip" href="#content">رفتن به محتوای اصلی</a><div id="top"></div><?php if (function_exists('elementor_theme_do_location') && elementor_theme_do_location('header')) { return; } if (pfb_e_available() && get_theme_mod('pfb_visual_chrome',false)) { ob_start(); $pfb_header=pfb_e_render_location('header'); $pfb_markup=ob_get_clean(); if ($pfb_header) { echo '<header class="pfb-visual-header">'.$pfb_markup.'</header>'; return; } } ?><header class="site-header"><div class="logo"><?php if (has_custom_logo()) { the_custom_logo(); } else { ?><a href="<?php echo esc_url(home_url('/')); ?>">✦ <?php echo esc_html(pfb_value('name')); ?></a><?php } ?></div><nav aria-label="فهرست اصلی"><?php wp_nav_menu(array('theme_location'=>'primary','container'=>false,'fallback_cb'=>'pfb_nav_fallback','depth'=>2)); ?></nav><a class="button nav-cta" href="<?php echo esc_url(home_url('/' . pfb_target('contact'))); ?>"><?php echo esc_html(pfb_label('navButton')); ?> ↗</a></header>\n`);
- add('footer.php',`<?php if (!defined('ABSPATH')) { exit; } ?><?php $pfb_footer=function_exists('elementor_theme_do_location') && elementor_theme_do_location('footer'); if (!$pfb_footer && pfb_e_available() && get_theme_mod('pfb_visual_chrome',false)) { ob_start(); $pfb_footer=pfb_e_render_location('footer'); $pfb_markup=ob_get_clean(); if ($pfb_footer) { echo '<footer class="pfb-visual-footer">'.$pfb_markup.'</footer>'; } } if (!$pfb_footer) : ?><footer><span><?php echo esc_html(pfb_value('name')); ?> · <?php echo esc_html(pfb_value('title')); ?></span><span><?php echo esc_html(pfb_label('footerText')); ?></span></footer><?php endif; wp_footer(); ?></body></html>\n`);
+ add('footer.php',`<?php if (!defined('ABSPATH')) { exit; } ?><?php $pfb_footer=function_exists('elementor_theme_do_location') && elementor_theme_do_location('footer'); if (!$pfb_footer && pfb_e_available() && get_theme_mod('pfb_visual_chrome',false)) { ob_start(); $pfb_footer=pfb_e_render_location('footer'); $pfb_markup=ob_get_clean(); if ($pfb_footer) { echo '<footer class="pfb-visual-footer">'.$pfb_markup.'</footer>'; } } if (!$pfb_footer) : ?><footer><span><?php echo esc_html(pfb_value('name')); ?> · <?php echo esc_html(pfb_value('title')); ?></span><span><?php echo esc_html(pfb_label('footerText')); ?></span><?php pfb_social_footer(); ?></footer><?php endif; wp_footer(); ?></body></html>\n`);
  let main=html.match(/<main>([\s\S]*)<\/main>/)[1];
  // Structural lists are rendered from WordPress data, not an embedded HTML snapshot.
  main=main.replace(/(<div class="project-grid">)[\s\S]*?(<\/div><\/section>)/g,'$1<?php pfb_project_cards(); ?>$2');

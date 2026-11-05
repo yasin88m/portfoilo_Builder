@@ -93,6 +93,11 @@ function pfb_customize($wp_customize) {
   $wp_customize->add_setting('pfb_' . $key, array('default'=>pfb_value($key), 'sanitize_callback'=>$sanitize));
   $wp_customize->add_control('pfb_' . $key, array('label'=>$label,'section'=>'pfb_profile','type'=>$multiline ? 'textarea' : ($key === 'email' ? 'email' : ($key === 'social' ? 'url' : 'text'))));
  }
+ $wp_customize->add_section('pfb_social',array('title'=>'شبکه‌های اجتماعی فوتر','priority'=>32));
+ foreach (pfb_social_networks() as $key=>$network) {
+  $wp_customize->add_setting('pfb_'.$key,array('default'=>pfb_value($key),'sanitize_callback'=>'esc_url_raw'));
+  $wp_customize->add_control('pfb_'.$key,array('label'=>$network[0],'section'=>'pfb_social','type'=>'url'));
+ }
  foreach (array('avatar'=>'عکس نیم‌تنه','cover'=>'کاور') as $key=>$label) {
   $wp_customize->add_setting('pfb_' . $key, array('default'=>pfb_image($key),'sanitize_callback'=>'esc_url_raw'));
   $wp_customize->add_control(new WP_Customize_Image_Control($wp_customize, 'pfb_' . $key, array('label'=>$label,'section'=>'pfb_profile')));

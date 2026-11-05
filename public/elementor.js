@@ -1,5 +1,5 @@
 import {resolveColors,paletteTone,copyFor,skillEntries,orderedSections,visibleSection,targetFor} from './customize.js';
-import {escapeHTML as escape} from './shared.js';
+import {escapeHTML as escape,socialNetworks} from './shared.js';
 // Native Elementor containers and Free widgets. No HTML-widget snapshots or Pro dependency.
 export function elementorTemplates(p){
  let sequence=0;const id=()=> (++sequence).toString(16).padStart(7,'0');
@@ -54,7 +54,14 @@ export function elementorTemplates(p){
  const parts={about,skills:skillStrip,projects:projectSection,services:serviceSection,contact};
  const content=[hero,...orderedSections(p).filter(key=>visibleSection(p,key)).map(key=>parts[key])];
  const header=section([row([col([heading(p.name,21,accent,'p')],30),col([row([visibleSection(p,'about')&&button(copy('navAbout'),'#about',accent,{background_color:'transparent',button_text_color:ink}),visibleSection(p,'projects')&&button(copy('navProjects'),target('projects'),accent,{background_color:'transparent',button_text_color:ink}),visibleSection(p,'contact')&&button(copy('navContact'),target('contact'),accent,{background_color:'transparent',button_text_color:ink})],{flex_gap:gap(8),flex_wrap:'wrap',flex_direction_mobile:'row'})],45),col([button(copy('navButton'),target('contact'))],25)],{flex_gap:gap(12)})],{padding:box(18),background_background:'classic',background_color:bg,css_classes:'pfb-e-header'},'سربرگ قابل ویرایش');
- const footer=section([row([col([heading(p.name,20),text(p.title),text(copy('footerText'))],65),col([button(copy('backTop'),'#top')],35)])],{background_background:'classic',background_color:panel,padding:box(28),css_classes:'pfb-e-footer'},'پاورقی قابل ویرایش');
+ const socialItems=socialNetworks.filter(({key})=>p[key]).map(({key,brand})=>({
+  _id:id(), social_icon:{value:'fab fa-'+brand,library:'fa-brands'}, link:{url:p[key],is_external:'on',nofollow:''}
+ }));
+ const socialWidget=socialItems.length ? widget('social-icons',{
+  social_icon_list:socialItems, shape:'rounded', icon_color:'custom',
+  icon_primary_color:panel, icon_secondary_color:accent, icon_size:slider(20)
+ },'شبکه‌های اجتماعی') : null;
+ const footer=section([row([col([heading(p.name,20),text(p.title),text(copy('footerText')),socialWidget],65),col([button(copy('backTop'),'#top')],35)])],{background_background:'classic',background_color:panel,padding:box(28),css_classes:'pfb-e-footer'},'پاورقی قابل ویرایش');
  function doc(title,type,content){return {title,type,version:'0.4',page_settings:{hide_title:'yes',template:'elementor_header_footer'},content};}
  return {page:doc('پورتفولیوی '+p.name,'page',content),header:doc('سربرگ '+p.name,'section',[header]),footer:doc('پاورقی '+p.name,'section',[footer])};
 }

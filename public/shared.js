@@ -6,12 +6,29 @@ export {palettes} from './customize.js';
 export const templates = ['codecraft','evergreen','coral','amethyst','learnhouse','eduviolet'];
 export function escapeHTML(value=''){return String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 export function safeURL(value){try{const u=new URL(value);return ['https:','http:'].includes(u.protocol)?u.href:'';}catch{return '';}}
+export const socialNetworks = [
+ {key:'socialInstagram', label:'اینستاگرام', icon:'instagram', brand:'instagram', hosts:['instagram.com']},
+ {key:'socialYouTube', label:'یوتیوب', icon:'youtube', brand:'youtube', hosts:['youtube.com','youtu.be']},
+ {key:'socialLinkedIn', label:'لینکدین', icon:'linkedin', brand:'linkedin-in', hosts:['linkedin.com']},
+ {key:'socialFacebook', label:'فیسبوک', icon:'facebook', brand:'facebook-f', hosts:['facebook.com','fb.com']},
+ {key:'socialX', label:'ایکس', icon:'x', brand:'x-twitter', hosts:['x.com','twitter.com']},
+ {key:'socialTelegram', label:'تلگرام', icon:'telegram', brand:'telegram-plane', hosts:['t.me','telegram.me']}
+];
 export function imageURL(value){return /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value||'')?value:'';}
 export function domainName(value){if(!value)return '';const s=value.trim().toLowerCase();if(!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(s))throw Error('دامنه را بدون https و مسیر وارد کنید؛ مانند example.com');return s;}
 export function normalize(input){
  const str=(x,n=200)=>String(x||'').trim().slice(0,n);
  if(!input||typeof input!=='object')throw Error('اطلاعات نامعتبر است');
  const p={paletteOverride:input.paletteOverride===true,name:str(input.name,80),title:str(input.title,120),field:str(input.field,80),bio:str(input.bio,2000),email:str(input.email,160),phone:str(input.phone,40),location:str(input.location,100),skills:str(input.skills,600),experience:str(input.experience,3000),education:str(input.education,1000),social:safeURL(input.social),avatar:imageURL(input.avatar),cover:imageURL(input.cover),services:str(input.services,1200),headline:str(input.headline,160),template:templates.includes(input.template)?input.template:'codecraft',color:hexColor(input.color,palettes[0]),design:normalizeDesign(input.design),skillsMode:input.skillsMode==='percent'?'percent':'list',domain:domainName(input.domain),slug:str(input.slug,60),projects:[]};
+ for (const {key} of socialNetworks) p[key] = safeURL(input[key]);
+ if (p.social) {
+  const host = new URL(p.social).hostname;
+  const network = socialNetworks.find(({hosts}) => hosts.some(domain => host === domain || host.endsWith('.' + domain)));
+  if (network) {
+   if (!Object.hasOwn(input, network.key)) p[network.key] = p.social;
+   p.social = '';
+  }
+ }
  p.skillLevels=normalizeSkillLevels(p.skills,input.skillLevels);
  if(!/^[a-z0-9](?:[a-z0-9-]{1,58}[a-z0-9])?$/.test(p.slug||'my-portfolio'))throw Error('شناسه سایت باید حروف انگلیسی کوچک، عدد و خط تیره باشد');
  if(p.email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email))throw Error('ایمیل معتبر وارد کنید');
@@ -57,11 +74,15 @@ export function portfolioHTML(raw){
  content=orderedSections(p).filter(k=>visibleSection(p,k)).map(k=>parts[k]).join('');
  // Skill details live in their own section; only the compact developer tool list stays in the hero.
  if(t!=='codecraft'||!visibleSection(p,'skills'))hero=hero.replace(skillStrip,'');
+ const socialIcons = socialNetworks.filter(({key}) => p[key]).map(({key,label,icon:name}) =>
+  `<a href="${e(p[key])}" aria-label="${label}" title="${label}" target="_blank" rel="noopener noreferrer">${icon(name)}</a>`
+ ).join('');
+ const socialFooter = socialIcons ? `<nav class="portfolio-social" aria-label="شبکه‌های اجتماعی">${socialIcons}</nav>` : '';
  const paletteVariables = p.paletteOverride ? [...templateTones].map(color =>
   `--tone-${color.slice(1)}:${paletteTone(color,p.color)};`
  ).join('') : '';
  const c=resolveColors(p),{background:bg,surface:panel,text:ink,accent}=c;const classes=[t,...Object.keys(p.design.colors).map(k=>'custom-'+k),...['fontSize','headingSize','radius','spacing','projectColumns'].filter(k=>p.design[k]!==undefined).map(k=>'design-'+k),p.paletteOverride?'palette-override':''].filter(Boolean).join(' ');
- return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${e(p.bio.slice(0,160))}"><title>${e(p.name||'پورتفولیوی من')} | ${e(p.title)}</title><style>${fontCSS}${portfolioCSS}</style></head><body class="${classes}" style="--bg:${bg};--panel:${panel};--ink:${ink};--accent:${accent};--chosen:${p.color};--button-bg:${c.buttonBg};--button-text:${c.buttonText};--heading:${c.heading};--hero-ink:${c.heroText};--hero-heading:${c.heroHeading};--hero-bg:${c.heroBackground};--skill:${c.skill};--body-px:${p.design.fontSize||15};--title-px:${p.design.headingSize||52};--radius:${p.design.radius??12}px;--spacing:${p.design.spacing||48}px;--columns:${p.design.projectColumns||3};${paletteVariables}"><div id="top"></div><header class="site-header"><a href="#top" class="logo"><span>${t==='codecraft'?'&lt;/&gt;':'✦'}</span> ${e(p.name||'نام شما')}</a><nav aria-label="ناوبری پورتفولیو">${visibleSection(p,'about')?`<a href="#about">${copy('navAbout')}</a>`:''}${visibleSection(p,'projects')?`<a href="${target('projects')}">${copy('navProjects')}</a>`:''}${visibleSection(p,'contact')?`<a href="${target('contact')}">${copy('navContact')}</a>`:''}</nav><a class="button nav-cta" href="${target('contact')}">${copy('navButton')} ↗</a></header><main>${hero}${content}</main><footer><span>${e(p.name)} · ${e(p.title)}</span><span>${copy('footerText')}</span></footer></body></html>`;
+ return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${e(p.bio.slice(0,160))}"><title>${e(p.name||'پورتفولیوی من')} | ${e(p.title)}</title><style>${fontCSS}${portfolioCSS}</style></head><body class="${classes}" style="--bg:${bg};--panel:${panel};--ink:${ink};--accent:${accent};--chosen:${p.color};--button-bg:${c.buttonBg};--button-text:${c.buttonText};--heading:${c.heading};--hero-ink:${c.heroText};--hero-heading:${c.heroHeading};--hero-bg:${c.heroBackground};--skill:${c.skill};--body-px:${p.design.fontSize||15};--title-px:${p.design.headingSize||52};--radius:${p.design.radius??12}px;--spacing:${p.design.spacing||48}px;--columns:${p.design.projectColumns||3};${paletteVariables}"><div id="top"></div><header class="site-header"><a href="#top" class="logo"><span>${t==='codecraft'?'&lt;/&gt;':'✦'}</span> ${e(p.name||'نام شما')}</a><nav aria-label="ناوبری پورتفولیو">${visibleSection(p,'about')?`<a href="#about">${copy('navAbout')}</a>`:''}${visibleSection(p,'projects')?`<a href="${target('projects')}">${copy('navProjects')}</a>`:''}${visibleSection(p,'contact')?`<a href="${target('contact')}">${copy('navContact')}</a>`:''}</nav><a class="button nav-cta" href="${target('contact')}">${copy('navButton')} ↗</a></header><main>${hero}${content}</main><footer><span>${e(p.name)} · ${e(p.title)}</span><span>${copy('footerText')}</span>${socialFooter}</footer></body></html>`;
 }
 const templateTones = new Set();
 const portfolioCSS=`
@@ -111,6 +132,19 @@ body[class].custom-text p,body[class].custom-text .contact-links{color:var(--ink
 body.design-radius .button,body.design-radius .project,body.design-radius .services-grid article{border-radius:var(--radius)}
 body.design-spacing .section,body.design-spacing .hero{padding-block:var(--spacing)}body.design-projectColumns .project-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
 @media(max-width:620px){body.design-projectColumns .project-grid{grid-template-columns:minmax(0,1fr)}.skill-grid{grid-template-columns:minmax(0,1fr)}body.design-spacing .section,body.design-spacing .hero{padding-block:calc(var(--spacing)*.75)}}
+footer { flex-wrap:wrap; align-items:center; }
+.portfolio-social { display:flex; flex-wrap:wrap; gap:8px; }
+.portfolio-social a {
+ width:42px; height:42px; display:grid; place-items:center; border-radius:12px;
+ border:1px solid color-mix(in srgb,var(--accent) 38%,transparent);
+ background:color-mix(in srgb,var(--accent) 9%,transparent); color:var(--accent);
+ transition:background-color .18s ease;
+}
+.portfolio-social a:hover,.portfolio-social a:focus-visible {
+ background:color-mix(in srgb,var(--accent) 20%,transparent);
+}
+.portfolio-social a:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+@media(max-width:620px){.portfolio-social{width:100%}}
 /* Scale text continuously from a 320px phone to an 1100px canvas. */
 body {
  --type-growth:clamp(0rem, calc((100vw - 20rem) / 780), .0625rem);
