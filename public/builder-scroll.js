@@ -1,17 +1,52 @@
-export function initBuilderScroll(){
- const frame=document.querySelector('#preview'),editor=document.querySelector('.editor'),panel=document.querySelector('.preview-panel');if(!frame||!editor)return;
- let raf=0;
- function sync(){raf=0;if(panel.classList.contains('fullscreen')){frame.contentWindow?.postMessage({type:'portfolio:mode',expanded:true},'*');return;}frame.contentWindow?.postMessage({type:'portfolio:mode',expanded:false},'*');const stacked=matchMedia('(max-width:900px)').matches;const r=(stacked?panel:editor).getBoundingClientRect();const start=20;const range=Math.max(stacked?innerHeight*.7:240,r.height-innerHeight+start+30);const ratio=Math.max(0,Math.min(1,(start-r.top)/range));frame.contentWindow?.postMessage({type:'portfolio:scroll',ratio},'*');}
- function schedule(){if(!raf)raf=requestAnimationFrame(sync);}
- addEventListener('scroll',schedule,{passive:true});addEventListener('resize',schedule,{passive:true});frame.addEventListener('load',schedule);
- addEventListener('message',e=>{
-  if(e.source!==frame.contentWindow)return;if(e.data?.type==='portfolio:close'&&panel.classList.contains('fullscreen')){document.querySelector('#fullscreen')?.click();return;}
-  if(e.data?.type==='portfolio:ready')schedule();
-  if(e.data?.type==='portfolio:wheel'&&typeof e.data.delta==='number'&&Number.isFinite(e.data.delta)){
-   const factor=e.data.mode===1?18:e.data.mode===2?innerHeight:1;if(panel.classList.contains('fullscreen')){frame.contentWindow.postMessage({type:'portfolio:local',delta:e.data.delta*factor},'*');return;}
-   scrollBy({top:Math.max(-innerHeight,Math.min(innerHeight,e.data.delta*factor)),behavior:'instant'});
+export function initBuilderScroll() {
+  const frame = document.querySelector('#preview');
+  const editor = document.querySelector('.editor');
+  const panel = document.querySelector('.preview-panel');
+  if (!frame || !editor || !panel) return;
+
+  const viewport = frame.closest('.frame-wrap');
+  const mobile = matchMedia('(max-width:900px), (pointer: coarse)');
+  let raf = 0;
+
+  function mode() {
+    const expanded = panel.classList.contains('fullscreen');
+    return { type: 'portfolio:mode', expanded, nativeScroll: expanded || mobile.matches || viewport.classList.contains('mobile') };
   }
- });
- new ResizeObserver(schedule).observe(editor);
- new MutationObserver(schedule).observe(panel,{attributes:true,attributeFilter:['class']});schedule();
+
+  function sync() {
+    raf = 0;
+    const state = mode();
+    frame.contentWindow?.postMessage(state, '*');
+    if (state.nativeScroll) return;
+
+    const bounds = editor.getBoundingClientRect();
+    const range = Math.max(240, bounds.height - innerHeight + 50);
+    const ratio = Math.max(0, Math.min(1, (20 - bounds.top) / range));
+    frame.contentWindow?.postMessage({ type: 'portfolio:scroll', ratio }, '*');
+  }
+
+  function schedule() {
+    if (!raf) raf = requestAnimationFrame(sync);
+  }
+
+  addEventListener('scroll', schedule, { passive: true });
+  addEventListener('resize', schedule, { passive: true });
+  mobile.addEventListener('change', schedule);
+  frame.addEventListener('load', schedule);
+  addEventListener('message', event => {
+    if (event.source !== frame.contentWindow) return;
+    if (event.data?.type === 'portfolio:close' && mode().expanded) {
+      document.querySelector('#fullscreen')?.click();
+      return;
+    }
+    if (event.data?.type === 'portfolio:ready') schedule();
+    if (event.data?.type !== 'portfolio:wheel' || !Number.isFinite(event.data.delta) || mode().nativeScroll) return;
+    const factor = event.data.mode === 1 ? 18 : event.data.mode === 2 ? innerHeight : 1;
+    scrollBy({ top: Math.max(-innerHeight, Math.min(innerHeight, event.data.delta * factor)), behavior: 'instant' });
+  });
+  new ResizeObserver(schedule).observe(editor);
+  const observer = new MutationObserver(schedule);
+  observer.observe(panel, { attributes: true, attributeFilter: ['class'] });
+  observer.observe(viewport, { attributes: true, attributeFilter: ['class'] });
+  schedule();
 }

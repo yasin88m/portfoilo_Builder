@@ -15,14 +15,85 @@ function toast(t){$('#toast').textContent=t;$('#toast').style.display='block';cl
 function save(){try{localStorage.setItem(key,JSON.stringify(data));$('#saveState').textContent='ذخیره شد · روی این دستگاه';}catch{toast('حافظه مرورگر پر است؛ پشتیبان اطلاعات را دریافت کنید.');}}
 function preview(){try{$('#preview').srcdoc=portfolioHTML({...data,domain:'',email:/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)?data.email:'',slug:'my-portfolio'}).replace('</body>','<style>html{scrollbar-width:none;scroll-behavior:auto}::-webkit-scrollbar{display:none}</style><script src="/preview-bridge.js"></script></body>');$('#previewAddress').textContent=data.domain||`${data.slug||'your-name'}.portfolio`;}catch{}}
 function field(label,name,type='text',full=false){return `<label class="field ${full?'full':''}">${label}${type==='textarea'?`<textarea data-key="${name}" rows="3" maxlength="3000">${e(data[name])}</textarea>`:`<input data-key="${name}" type="${type}" value="${e(data[name])}" ${['email','url'].includes(type)?'dir="ltr"':''} maxlength="600">`}</label>`;}
+let onlineConfigured = null;
+let publication = null;
+let publicationBusy = false;
+let publicationError = '';
+
+function publicationControls() {
+ const panel = $('#publication');
+ if (!panel) return;
+ const heading = '<h3>انتشار و لینک اشتراک‌گذاری</h3>';
+ if (onlineConfigured === null) {
+  panel.innerHTML = heading + '<p>در حال بررسی وضعیت حساب…</p>';
+  return;
+ }
+ if (!onlineConfigured) {
+  panel.innerHTML = heading + '<p>انتشار آنلاین به تنظیم حساب گیت‌هاب روی سرور نیاز دارد.</p>';
+  return;
+ }
+ if (!user) {
+  panel.innerHTML = heading + '<a class="button secondary" href="/auth/login">ورود با گیت‌هاب برای انتشار</a>';
+  return;
+ }
+ const url = publication?.url;
+ const disabled = publicationBusy ? 'disabled' : '';
+ panel.innerHTML = `${heading}<p>اطلاعات این نسخه عمومی می‌شود. ویرایش پیش‌نویس تا انتشار دوباره روی لینک اثر نمی‌گذارد.</p>
+  ${url ? `<label class="field">لینک عمومی<input id="publishedUrl" type="url" readonly dir="ltr" value="${e(url)}"></label>
+  <div><a class="button secondary" href="${e(url)}" target="_blank" rel="noopener">باز کردن سایت</a>
+  <button type="button" class="button secondary" id="copyPublished">کپی لینک</button></div>` : ''}
+  <div>${publication ? `<button type="button" class="button" id="publishPortfolio" ${disabled}>${url ? 'به‌روزرسانی سایت' : 'انتشار و ساخت لینک'}</button>` : ''}
+  ${url ? `<button type="button" class="textbutton" id="unpublishPortfolio" ${disabled}>لغو انتشار</button>` : ''}
+  <button type="button" class="textbutton" id="refreshPublication" ${disabled}>تازه‌کردن وضعیت</button></div>
+  <p role="status">${publicationBusy ? 'در حال انجام…' : e(publicationError || (url ? 'منتشر شده' : publication ? 'هنوز منتشر نشده' : ''))}</p>`;
+ $('#refreshPublication').onclick = () => updatePublication('GET');
+ if ($('#publishPortfolio')) $('#publishPortfolio').onclick = () => {
+  if (valid()) updatePublication('PUT', normalize(data));
+ };
+ if ($('#unpublishPortfolio')) $('#unpublishPortfolio').onclick = () => {
+  if (confirm('لینک عمومی تا انتشار دوباره غیرفعال شود؟')) updatePublication('DELETE');
+ };
+ if ($('#copyPublished')) $('#copyPublished').onclick = async () => {
+  try { await navigator.clipboard.writeText(url); toast('لینک کپی شد.'); }
+  catch { $('#publishedUrl')?.select(); toast('لینک انتخاب شد. آن را کپی کن.'); }
+ };
+}
+
+async function updatePublication(method, portfolio) {
+ if (publicationBusy) return;
+ publicationBusy = true;
+ publicationError = '';
+ publicationControls();
+ try {
+  const options = method === 'GET' ? {} : {
+   method,
+   headers: { 'Content-Type': 'application/json' },
+   body: JSON.stringify({ sha: publication.sha, portfolio })
+  };
+  const response = await fetch('/api/publication', options);
+  const result = await response.json();
+  if (!response.ok) {
+   if (response.status === 409) publication = null;
+   throw Error(result.error || 'انتشار انجام نشد.');
+  }
+  publication = result;
+  if (method !== 'GET') toast(method === 'PUT' ? 'نسخه جدید منتشر شد.' : 'انتشار لغو شد.');
+ } catch (error) {
+  publicationError = error.message;
+ } finally {
+  publicationBusy = false;
+  publicationControls();
+ }
+}
+
 function render(){
  const openDetails=[...document.querySelectorAll('.design-studio details[open]')].map(x=>x.id);
  $('.steps').innerHTML=names.map((n,i)=>`<button type="button" class="step ${i===step?'active':''}" data-step="${i}" ${i===step?'aria-current="step"':''}><b>${(i+1).toLocaleString('fa')}</b>${n}</button>`).join('');$('#stepTitle').textContent=names[step];$('#stepCounter').textContent=`قدم ${(step+1).toLocaleString('fa')} از ۴`;$('#stepDescription').textContent=descriptions[step];$('#back').hidden=step===0;$('#next').innerHTML=step===3?`${icon('save')} ذخیره در حساب من`:`ادامه مسیر ${icon('arrowLeft')}`;$('#error').textContent='';
  let html='';if(step===0)html=`<div class="upload">${data.avatar?`<img class="avatar" src="${data.avatar}" alt="تصویر شما">`:'<span class="avatar">♙</span>'}<div><label>تصویر پروفایل<input type="file" data-image="avatar" accept="image/png,image/jpeg,image/webp"></label><small>عکس نیم‌تنه بارگذاری کن؛ تصویر کامل بدون برش نمایش داده می‌شود. JPG، PNG یا WebP · حداکثر ۸ مگابایت</small>${data.avatar?'<button type="button" id="removeAvatar" class="textbutton">حذف تصویر</button>':''}</div></div><div class="upload"><div><label>تصویر کاور (برای قالب طبیعت و بخش معرفی)<input type="file" data-image="cover" accept="image/png,image/jpeg,image/webp"></label>${data.cover?'<button type="button" id="removeCover" class="textbutton">حذف کاور</button>':''}</div>${data.cover?`<img src="${data.cover}" class="avatar" alt="کاور">`:''}</div><div class="form-grid">${field('نام و نام خانوادگی *','name')}${field('عنوان حرفه‌ای *','title')}${field('حیطه کاری *','field')}${field('شهر / محل فعالیت','location')}${field('تیتر اصلی سایت','headline','text',true)}${field('درباره من','bio','textarea',true)}${field('خدمات (هر خدمت در یک خط)','services','textarea',true)}${field('مهارت‌ها (با ویرگول جدا کن)','skills','textarea',true)}${skillControls(data)}${field('سوابق کاری','experience','textarea',true)}${field('تحصیلات و گواهینامه‌ها','education','textarea',true)}${field('ایمیل عمومی','email','email')}${field('شماره تماس عمومی','phone','tel')}${field('لینک شبکه اجتماعی','social','url',true)}</div>`;
  if(step===1)html=data.projects.map((p,i)=>`<article class="project-editor"><div class="project-heading"><strong>پروژه ${(i+1).toLocaleString('fa')}</strong><button type="button" data-delete="${i}" class="textbutton">${icon('trash')} حذف</button></div><div class="form-grid">${['title','category','description','url'].map((k,j)=>`<label class="field ${j>1?'full':''}">${['نام پروژه *','دسته / حوزه','توضیحات و نتیجه','لینک پروژه'][j]}<${k==='description'?'textarea':'input'} data-project="${i}" data-prop="${k}" ${k==='description'?'':`value="${e(p[k])}" type="${k==='url'?'url':'text'}"`}>${k==='description'?e(p[k])+'</textarea>':''}</label>`).join('')}<label class="field full">تصویر پروژه<input type="file" data-image="${i}" accept="image/png,image/jpeg,image/webp"></label>${p.image?`<img src="${p.image}" alt="پروژه" style="max-width:100%;height:90px;border-radius:8px"><button type="button" data-remove-image="${i}" class="textbutton">حذف تصویر</button>`:''}</div></article>`).join('')+`<button type="button" id="addProject" class="button secondary">${icon('plus')} افزودن پروژه جدید</button><p class="note">می‌توانی بدون نمونه‌کار هم ادامه بدهی و بعداً آن‌ها را اضافه کنی. حداکثر ۱۲ پروژه.</p>`;
  if(step===2)html=`<h3>قالب وب‌سایت</h3><div class="templates">${templates.map((t,i)=>`<button type="button" data-template="${t}" aria-pressed="${data.template===t}" class="template ${data.template===t?'selected':''}"><div class="template-art"><iframe sandbox="" title="${templateNames[i]}" tabindex="-1"></iframe></div>${templateNames[i]}<small>${templateDescriptions[i]}</small></button>`).join('')}</div><h3>پالت رنگی</h3><div class="swatches">${palettes.map((c,i)=>`<button type="button" class="swatch ${data.paletteOverride&&data.color===c?'selected':''}" data-color="${c}" style="background:${c}" aria-label="${paletteNames[i]}" aria-pressed="${data.paletteOverride&&data.color===c}"></button>`).join('')}</div><p class="note">همه قالب‌ها واکنش‌گرا هستند. از بین ۳۲ رنگ شروع کن یا در پایین، رنگ دقیق هر المان را انتخاب کن.</p>${designControls(data)}`;
- if(step===3)html=`<div class="export-options"><h3>نوع خروجی را انتخاب کن</h3><p>وب‌سایت مستقل یا قالب قابل نصب وردپرس؛ هر دو با اطلاعات و ظاهر انتخابی تو.</p><div><button type="button" id="exportHTMLStep" class="button secondary">${icon('monitor')} سایت مستقل HTML</button><button type="button" id="exportWordpressStep" class="button">${icon('layers')} وردپرس + المنتور ZIP</button></div><small>وردپرس + المنتور: از پنل راه‌اندازی قالب، صفحه اصلی، سربرگ و فوتر را بساز؛ متن‌ها، عکس‌ها، دکمه‌ها و کارت پروژه‌ها با المنتور رایگان قابل ویرایش‌اند.</small></div><div class="summary"><h3>${e(data.name||'پورتفولیوی شما')} ✦</h3><p>${e(data.title)} · ${data.projects.length.toLocaleString('fa')} نمونه‌کار · آماده دریافت خروجی</p></div><div class="form-grid">${field('شناسه سایت (انگلیسی)','slug','text',true)}${field('دامنه اختصاصی (اختیاری)','domain','text',true)}</div><p class="note">دامنه را مانند example.com وارد کن. این مرحله دامنه را خریداری یا خودکار متصل نمی‌کند.</p><details><summary>راهنمای نصب قالب وردپرس</summary><ol><li>وردپرس را روی هاست نصب کن.</li><li>از نمایش ← پوسته‌ها ← افزودن ← بارگذاری، ZIP دریافتی را نصب و فعال کن.</li><li>از نمایش ← راه‌اندازی پورتفولیو، المنتور رایگان را نصب و فعال کن؛ سپس صفحات آماده را بساز.</li><li>صفحه اصلی، سربرگ و فوتر را با دکمه «ویرایش با المنتور» تغییر بده؛ برای انتشار و تعیین صفحه اصلی از گزینه‌های راه‌انداز استفاده کن.</li></ol></details><details><summary>راهنمای اتصال به دامنه برای خروجی HTML</summary><ol><li>فایل HTML را دریافت و با نام index.html در ریشه هاست بارگذاری کن.</li><li>دامنه را در پنل هاست اضافه کن.</li><li>رکورد A یا CNAME را دقیقاً طبق مقدار اعلام‌شده توسط شرکت هاست تنظیم کن.</li><li>پس از تأیید DNS، گواهی HTTPS را در پنل هاست فعال کن.</li></ol></details><p class="note">${user?'حساب متصل است. ذخیره آنلاین، اطلاعات همین حساب را به‌روزرسانی می‌کند.':'برای ذخیره آنلاین وارد حساب شو. خروجی سایت و پشتیبان بدون ورود هم قابل دریافت‌اند.'}</p><button type="button" id="loadCloud" class="button secondary">بازیابی از حساب من</button>`;
- $('#fields').innerHTML=html;bindCustomization(data,()=>{save();preview();},render);openDetails.forEach(id=>{const detail=document.getElementById(id);if(detail)detail.open=true;});if($('#exportHTMLStep'))$('#exportHTMLStep').onclick=exportHTML;if($('#exportWordpressStep'))$('#exportWordpressStep').onclick=exportWordpress;
+ if(step===3)html=`<div id="publication" class="export-options"></div><div class="export-options"><h3>نوع خروجی را انتخاب کن</h3><p>وب‌سایت مستقل یا قالب قابل نصب وردپرس؛ هر دو با اطلاعات و ظاهر انتخابی تو.</p><div><button type="button" id="exportHTMLStep" class="button secondary">${icon('monitor')} سایت مستقل HTML</button><button type="button" id="exportWordpressStep" class="button">${icon('layers')} وردپرس + المنتور ZIP</button></div><small>وردپرس + المنتور: از پنل راه‌اندازی قالب، صفحه اصلی، سربرگ و فوتر را بساز؛ متن‌ها، عکس‌ها، دکمه‌ها و کارت پروژه‌ها با المنتور رایگان قابل ویرایش‌اند.</small></div><div class="summary"><h3>${e(data.name||'پورتفولیوی شما')} ✦</h3><p>${e(data.title)} · ${data.projects.length.toLocaleString('fa')} نمونه‌کار · آماده دریافت خروجی</p></div><div class="form-grid">${field('شناسه سایت (انگلیسی)','slug','text',true)}${field('دامنه اختصاصی (اختیاری)','domain','text',true)}</div><p class="note">دامنه را مانند example.com وارد کن. این مرحله دامنه را خریداری یا خودکار متصل نمی‌کند.</p><details><summary>راهنمای نصب قالب وردپرس</summary><ol><li>وردپرس را روی هاست نصب کن.</li><li>از نمایش ← پوسته‌ها ← افزودن ← بارگذاری، ZIP دریافتی را نصب و فعال کن.</li><li>از نمایش ← راه‌اندازی پورتفولیو، المنتور رایگان را نصب و فعال کن؛ سپس صفحات آماده را بساز.</li><li>صفحه اصلی، سربرگ و فوتر را با دکمه «ویرایش با المنتور» تغییر بده؛ برای انتشار و تعیین صفحه اصلی از گزینه‌های راه‌انداز استفاده کن.</li></ol></details><details><summary>راهنمای اتصال به دامنه برای خروجی HTML</summary><ol><li>فایل HTML را دریافت و با نام index.html در ریشه هاست بارگذاری کن.</li><li>دامنه را در پنل هاست اضافه کن.</li><li>رکورد A یا CNAME را دقیقاً طبق مقدار اعلام‌شده توسط شرکت هاست تنظیم کن.</li><li>پس از تأیید DNS، گواهی HTTPS را در پنل هاست فعال کن.</li></ol></details><p class="note">${user?'حساب متصل است. ذخیره آنلاین، اطلاعات همین حساب را به‌روزرسانی می‌کند.':'برای ذخیره آنلاین وارد حساب شو. خروجی سایت و پشتیبان بدون ورود هم قابل دریافت‌اند.'}</p><button type="button" id="loadCloud" class="button secondary">بازیابی از حساب من</button>`;
+ $('#fields').innerHTML=html;publicationControls();bindCustomization(data,()=>{save();preview();},render);openDetails.forEach(id=>{const detail=document.getElementById(id);if(detail)detail.open=true;});if($('#exportHTMLStep'))$('#exportHTMLStep').onclick=exportHTML;if($('#exportWordpressStep'))$('#exportWordpressStep').onclick=exportWordpress;
  document.querySelectorAll('.template-art iframe').forEach((f,i)=>{getDemo({template:templates[i]}).then(d=>{if(f.isConnected)f.srcdoc=portfolioHTML(d);}).catch(()=>{if(f.isConnected)f.title='بارگذاری دمو ناموفق؛ دوباره قالب‌ها را باز کنید';});});
  document.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{if(+b.dataset.step>step&&!valid())return;step=+b.dataset.step;render();});
  document.querySelectorAll('[data-key]').forEach(el=>el.oninput=()=>{data[el.dataset.key]=el.value;save();preview();});
@@ -43,9 +114,9 @@ function exportWordpress(){if(!valid())return;try{download(wordpressZIP(data),'p
 $('#export').onclick=exportHTML;$('#exportWordpress').onclick=exportWordpress;$('#backup').onclick=()=>download(JSON.stringify(data,null,2),'portfolio-backup.json','application/json');$('#restore').onchange=async ev=>{try{const file=ev.target.files[0];if(!file)return;if(file.size>5_000_000)throw Error('فایل بیش از حد بزرگ است');const p=normalize(JSON.parse(await file.text()));if(!confirm('اطلاعات فعلی با فایل پشتیبان جایگزین شود؟'))return;data=p;remoteSha=null;save();render();preview();toast('پشتیبان بازیابی شد');}catch(err){toast(err.message);}ev.target.value='';};
 async function fillDemo(gender){if(data.name&&!confirm('اطلاعات فعلی با دموی تصویری جایگزین شود؟ ابتدا می‌توانی پشتیبان بگیری.'))return;const buttons=[$('#loadDemo'),$('#loadDemoMan')];buttons.forEach(b=>b.disabled=true);try{const sample=await getDemo({gender,template:data.template,color:data.color,paletteOverride:data.paletteOverride});sample.design=normalizeDesign(data.design);sample.skillsMode=data.skillsMode||'list';data=sample;remoteSha=null;save();preview();render();toast('دموی تصویری آماده شد؛ همه مشخصات قابل ویرایش هستند.');}catch(err){toast(err.message);}finally{buttons.forEach(b=>b.disabled=false);}}
 $('#loadDemo').onclick=()=>fillDemo('woman');$('#loadDemoMan').onclick=()=>fillDemo('man');
-$('#templatesLink').onclick=()=>{step=2;render();$('#workspace').scrollIntoView();};$('#help').onclick=()=>$('#helpDialog').showModal();$('#closeHelp').onclick=()=>$('#helpDialog').close();function expandPreview(expanded){const panel=$('.preview-panel');panel.classList.toggle('fullscreen',expanded);document.body.classList.toggle('preview-expanded',expanded);$('#fullscreen').setAttribute('aria-pressed',String(expanded));$('#fullscreen').setAttribute('aria-label',expanded?'بستن پیش‌نمایش بزرگ':'بازکردن پیش‌نمایش بزرگ');$('#fullscreen').innerHTML=icon(expanded?'close':'expand');$('#preview').contentWindow?.postMessage({type:'portfolio:mode',expanded},'*');}$('#fullscreen').onclick=()=>expandPreview(!$('.preview-panel').classList.contains('fullscreen'));document.addEventListener('keydown',ev=>{if(ev.key==='Escape')expandPreview(false);});document.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{$('.frame-wrap').classList.toggle('mobile',b.dataset.device==='mobile');document.querySelectorAll('[data-device]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});});
+$('#templatesLink').onclick=()=>{step=2;render();$('#workspace').scrollIntoView();};$('#help').onclick=()=>$('#helpDialog').showModal();$('#closeHelp').onclick=()=>$('#helpDialog').close();function expandPreview(expanded){const panel=$('.preview-panel');panel.classList.toggle('fullscreen',expanded);document.body.classList.toggle('preview-expanded',expanded);$('#fullscreen').setAttribute('aria-pressed',String(expanded));$('#fullscreen').setAttribute('aria-label',expanded?'بستن پیش‌نمایش بزرگ':'بازکردن پیش‌نمایش بزرگ');$('#fullscreen').innerHTML=icon(expanded?'close':'expand');}$('#fullscreen').onclick=()=>expandPreview(!$('.preview-panel').classList.contains('fullscreen'));document.addEventListener('keydown',ev=>{if(ev.key==='Escape')expandPreview(false);});document.querySelectorAll('[data-device]').forEach(b=>b.onclick=()=>{$('.frame-wrap').classList.toggle('mobile',b.dataset.device==='mobile');document.querySelectorAll('[data-device]').forEach(x=>{x.classList.toggle('selected',x===b);x.setAttribute('aria-pressed',String(x===b));});});
 async function loadCloud(){if(!confirm('پیش‌نویس فعلی با نسخه ذخیره‌شده در حساب جایگزین شود؟'))return;try{const res=await fetch('/api/portfolio');const result=await res.json();if(!res.ok)throw Error(result.error);data=normalize(result.portfolio);remoteSha=result.sha;save();preview();render();toast('اطلاعات حساب بازیابی شد');}catch(err){toast(err.message);}}
-async function init(){try{const r=await fetch('/api/session');const s=await r.json();user=s.user;if(user){$('#login').textContent=`${user.login} · خروج` ;$('#login').href='#';$('#login').onclick=async ev=>{ev.preventDefault();await fetch('/auth/logout',{method:'POST'});location.reload();};}else if(!s.configured){$('#login').textContent='حالت محلی';$('#login').href='#';$('#login').onclick=ev=>{ev.preventDefault();toast('ورود آنلاین هنوز روی سرور تنظیم نشده؛ ساخت و خروجی سایت فعال است.');};}}catch{}try{const repaired=await repairDemoPortrait(data.avatar);if(repaired!==data.avatar){data.avatar=repaired;save();toast('عکس ناقص دموی قدیمی ترمیم شد؛ اطلاعاتت حفظ شده است.');}}catch{}render();preview();}init();
+async function init(){try{const r=await fetch('/api/session');const s=await r.json();user=s.user;onlineConfigured=s.configured;if(user){void updatePublication('GET');}if(user){$('#login').textContent=`${user.login} · خروج` ;$('#login').href='#';$('#login').onclick=async ev=>{ev.preventDefault();await fetch('/auth/logout',{method:'POST'});location.reload();};}else if(!s.configured){$('#login').textContent='حالت محلی';$('#login').href='#';$('#login').onclick=ev=>{ev.preventDefault();toast('ورود آنلاین هنوز روی سرور تنظیم نشده؛ ساخت و خروجی سایت فعال است.');};}}catch{}try{const repaired=await repairDemoPortrait(data.avatar);if(repaired!==data.avatar){data.avatar=repaired;save();toast('عکس ناقص دموی قدیمی ترمیم شد؛ اطلاعاتت حفظ شده است.');}}catch{}render();preview();}init();
 
 initPreviews();
 
