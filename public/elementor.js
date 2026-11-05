@@ -12,9 +12,14 @@ export function elementorTemplates(p){
  const font={typography_typography:'custom',typography_font_family:'Vazirmatn'};
  function widget(type,settings,label){return {id:id(),elType:'widget',widgetType:type,settings:{...settings,_title:label},elements:[]};}
  function container(elements,settings={},label='بخش'){return {id:id(),elType:'container',isInner:false,settings:{content_width:'full',flex_direction:'column',flex_gap:gap(18),padding:box(0),...settings,_title:label},elements:elements.filter(Boolean)};}
- const heading=(text,size=30,color=ink,tag='h2',extra={})=>widget('heading',{title:escape(text),header_size:tag,title_color:color===ink?c.heading:color,...font,typography_font_size:slider(tag==='h1'?(p.design?.headingSize||size):size),typography_font_size_mobile:slider(Math.min(size,32)),typography_line_height:slider(1.65,'em'),...extra},text.slice(0,35));
- const text=(value,color=ink,extra={})=>widget('text-editor',{editor:'<p>'+escape(value).replace(/\n/g,'<br>')+'</p>',text_color:color,...font,typography_font_size:slider(p.design?.fontSize||14),typography_line_height:slider(1.95,'em'),...extra},'متن قابل ویرایش');
- const button=(label,url=target('contact'),color=accent,extra={})=>widget('button',{text:escape(label),link:{url,is_external:false,nofollow:false},align:'right',button_text_color:c.buttonText,background_color:color===accent?c.buttonBg:color,...font,typography_font_size:slider(13),border_radius:box(p.design?.radius??(['coral','learnhouse','evergreen'].includes(p.template)?28:8)),text_padding:box(14),...extra},label);
+ const responsiveType=(size, minimum, ratio)=>({
+  typography_font_size:slider(size),
+  typography_font_size_tablet:slider(Math.max(minimum,Math.round(size*(1+ratio)/2))),
+  typography_font_size_mobile:slider(Math.max(minimum,Math.round(size*ratio)))
+ });
+ const heading=(text,size=30,color=ink,tag='h2',extra={})=>widget('heading',{title:escape(text),header_size:tag,title_color:color===ink?c.heading:color,...font,...responsiveType(tag==='h1'?(p.design?.headingSize||size):size,Math.min(size,tag==='h1'?26:11),tag==='h1'?.62:.76),typography_line_height:slider(1.65,'em'),...extra},text.slice(0,35));
+ const text=(value,color=ink,extra={})=>widget('text-editor',{editor:'<p>'+escape(value).replace(/\n/g,'<br>')+'</p>',text_color:color,...font,...responsiveType(p.design?.fontSize||14,12,.75),typography_line_height:slider(1.95,'em'),...extra},'متن قابل ویرایش');
+ const button=(label,url=target('contact'),color=accent,extra={})=>widget('button',{text:escape(label),link:{url,is_external:false,nofollow:false},align:'right',button_text_color:c.buttonText,background_color:color===accent?c.buttonBg:color,...font,...responsiveType(13,11,.85),border_radius:box(p.design?.radius??(['coral','learnhouse','evergreen'].includes(p.template)?28:8)),text_padding:box(14),...extra},label);
  const image=(url,alt,height=400,extra={})=>url?widget('image',{image:{url,id:0,alt},image_size:'full',width:slider(100,'%'),height:slider(height),height_mobile:slider(Math.min(height,330)),'object-fit':'contain',...extra},alt):null;
  const row=(children,settings={},label='ردیف')=>container(children,{flex_direction:'row',flex_direction_mobile:'column',flex_align_items:'center',flex_gap:gap(30),...settings},label);
  const col=(children,width=50,settings={},label='ستون')=>container(children,{width:slider(width,'%'),width_mobile:slider(100,'%'),...settings},label);

@@ -61,7 +61,7 @@ export function portfolioHTML(raw){
   `--tone-${color.slice(1)}:${paletteTone(color,p.color)};`
  ).join('') : '';
  const c=resolveColors(p),{background:bg,surface:panel,text:ink,accent}=c;const classes=[t,...Object.keys(p.design.colors).map(k=>'custom-'+k),...['fontSize','headingSize','radius','spacing','projectColumns'].filter(k=>p.design[k]!==undefined).map(k=>'design-'+k),p.paletteOverride?'palette-override':''].filter(Boolean).join(' ');
- return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${e(p.bio.slice(0,160))}"><title>${e(p.name||'پورتفولیوی من')} | ${e(p.title)}</title><style>${fontCSS}${portfolioCSS}</style></head><body class="${classes}" style="--bg:${bg};--panel:${panel};--ink:${ink};--accent:${accent};--chosen:${p.color};--button-bg:${c.buttonBg};--button-text:${c.buttonText};--heading:${c.heading};--hero-ink:${c.heroText};--hero-heading:${c.heroHeading};--hero-bg:${c.heroBackground};--skill:${c.skill};--body-size:${p.design.fontSize||15}px;--title-size:${p.design.headingSize||52}px;--radius:${p.design.radius??12}px;--spacing:${p.design.spacing||48}px;--columns:${p.design.projectColumns||3};${paletteVariables}"><div id="top"></div><header class="site-header"><a href="#top" class="logo"><span>${t==='codecraft'?'&lt;/&gt;':'✦'}</span> ${e(p.name||'نام شما')}</a><nav aria-label="ناوبری پورتفولیو">${visibleSection(p,'about')?`<a href="#about">${copy('navAbout')}</a>`:''}${visibleSection(p,'projects')?`<a href="${target('projects')}">${copy('navProjects')}</a>`:''}${visibleSection(p,'contact')?`<a href="${target('contact')}">${copy('navContact')}</a>`:''}</nav><a class="button nav-cta" href="${target('contact')}">${copy('navButton')} ↗</a></header><main>${hero}${content}</main><footer><span>${e(p.name)} · ${e(p.title)}</span><span>${copy('footerText')}</span></footer></body></html>`;
+ return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="${e(p.bio.slice(0,160))}"><title>${e(p.name||'پورتفولیوی من')} | ${e(p.title)}</title><style>${fontCSS}${portfolioCSS}</style></head><body class="${classes}" style="--bg:${bg};--panel:${panel};--ink:${ink};--accent:${accent};--chosen:${p.color};--button-bg:${c.buttonBg};--button-text:${c.buttonText};--heading:${c.heading};--hero-ink:${c.heroText};--hero-heading:${c.heroHeading};--hero-bg:${c.heroBackground};--skill:${c.skill};--body-px:${p.design.fontSize||15};--title-px:${p.design.headingSize||52};--radius:${p.design.radius??12}px;--spacing:${p.design.spacing||48}px;--columns:${p.design.projectColumns||3};${paletteVariables}"><div id="top"></div><header class="site-header"><a href="#top" class="logo"><span>${t==='codecraft'?'&lt;/&gt;':'✦'}</span> ${e(p.name||'نام شما')}</a><nav aria-label="ناوبری پورتفولیو">${visibleSection(p,'about')?`<a href="#about">${copy('navAbout')}</a>`:''}${visibleSection(p,'projects')?`<a href="${target('projects')}">${copy('navProjects')}</a>`:''}${visibleSection(p,'contact')?`<a href="${target('contact')}">${copy('navContact')}</a>`:''}</nav><a class="button nav-cta" href="${target('contact')}">${copy('navButton')} ↗</a></header><main>${hero}${content}</main><footer><span>${e(p.name)} · ${e(p.title)}</span><span>${copy('footerText')}</span></footer></body></html>`;
 }
 const templateTones = new Set();
 const portfolioCSS=`
@@ -107,10 +107,55 @@ body[class].custom-heading h1,body[class].custom-heading h2,body[class].custom-h
 body[class].custom-heroText .hero,body[class].custom-heroText .hero p{color:var(--hero-ink)}body[class].custom-heroHeading .hero h1,body[class].custom-heading .hero h1,body[class].custom-heroHeading .hero h1 em{color:var(--hero-heading)}
 body[class].custom-heroBackground .nature-hero:after{background:linear-gradient(270deg,var(--hero-bg),transparent)}body[class].custom-heroBackground .hero,body[class].custom-heroBackground .teal-banner,body[class].custom-heroBackground .teal-banner:after{background-color:var(--hero-bg)}
 body[class].custom-surface .contact,body[class].custom-surface .availability,body[class].custom-surface .project,body[class].custom-surface .services-grid article,body[class].custom-surface .developer-about,body[class].custom-surface .mentor-story,body[class].custom-surface.coral .about{background:var(--panel)}
-body[class].custom-text p,body[class].custom-text .contact-links{color:var(--ink)}body[class].custom-heroText .hero p{color:var(--hero-ink)}body.design-fontSize{font-size:var(--body-size)}body.design-fontSize p{font-size:var(--body-size)}
-body.design-headingSize .hero h1{font-size:clamp(28px,6vw,var(--title-size))}body.design-radius .button,body.design-radius .project,body.design-radius .services-grid article{border-radius:var(--radius)}
+body[class].custom-text p,body[class].custom-text .contact-links{color:var(--ink)}body[class].custom-heroText .hero p{color:var(--hero-ink)}
+body.design-radius .button,body.design-radius .project,body.design-radius .services-grid article{border-radius:var(--radius)}
 body.design-spacing .section,body.design-spacing .hero{padding-block:var(--spacing)}body.design-projectColumns .project-grid{grid-template-columns:repeat(var(--columns),minmax(0,1fr))}
 @media(max-width:620px){body.design-projectColumns .project-grid{grid-template-columns:minmax(0,1fr)}.skill-grid{grid-template-columns:minmax(0,1fr)}body.design-spacing .section,body.design-spacing .hero{padding-block:calc(var(--spacing)*.75)}}
+/* Scale text continuously from a 320px phone to an 1100px canvas. */
+body {
+ --type-growth:clamp(0rem, calc((100vw - 20rem) / 780), .0625rem);
+ --hero-min:1.625rem;
+ --hero-range:26;
+ font-size:calc(.8125rem + 2 * var(--type-growth));
+}
+body.coral { --hero-range:25; }
+body.amethyst { --hero-range:24; }
+body.eduviolet { --hero-range:22; }
+body .hero h1, body.coral .hero h1, body.amethyst .hero h1, body.eduviolet .hero h1 {
+ font-size:calc(var(--hero-min) + var(--hero-range) * var(--type-growth));
+ line-height:1.45;
+ text-wrap:balance;
+}
+body h2, body .contact h2, body.codecraft .contact h2 {
+ font-size:calc(1.1875rem + 12 * var(--type-growth));
+}
+body .hero .headline { font-size:calc(1rem + 7 * var(--type-growth)); }
+body h3, body .project-info h3, body .services-grid h3 {
+ font-size:calc(.9375rem + 4 * var(--type-growth));
+}
+body .hero p, body .project-info p { font-size:inherit; }
+body .logo { font-size:calc(.875rem + 4 * var(--type-growth)); }
+body.evergreen .logo { font-size:calc(.875rem + 12 * var(--type-growth)); }
+body .eyebrow, body .project-info a, body .services-grid a {
+ font-size:calc(.6875rem + var(--type-growth));
+}
+body .site-header nav, body .site-header .button, body .button {
+ font-size:calc(.6875rem + 2 * var(--type-growth));
+}
+body .site-header nav { flex-wrap:wrap; row-gap:6px; }
+body .metrics b { font-size:calc(1.25rem + 11 * var(--type-growth)); }
+body.learnhouse .metrics b, body .floating-stats .metrics b {
+ font-size:calc(1.125rem + 6 * var(--type-growth));
+}
+body .metrics .location, body.learnhouse .metrics .location {
+ font-size:calc(.75rem + 4 * var(--type-growth));
+}
+body.design-fontSize, body.design-fontSize p {
+ font-size:calc(max(12, var(--body-px) * .75) * 1px + (var(--body-px) - max(12, var(--body-px) * .75)) * var(--type-growth));
+}
+body.design-headingSize .hero h1 {
+ font-size:calc(max(26, var(--title-px) * .62) * 1px + (var(--title-px) - max(26, var(--title-px) * .62)) * var(--type-growth));
+}
 `.replace(/#[a-f0-9]{3,8}\b/gi, color => {
  if (![4, 5, 7, 9].includes(color.length)) return color;
  templateTones.add(color);
