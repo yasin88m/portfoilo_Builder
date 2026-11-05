@@ -16,6 +16,8 @@ export function passwordHash(password, salt) {
 
 export function memoryRecords() {
  const rows = new Map();
+ const backgroundUsage = new Map();
+ const backgroundReservations = new Map();
  return {
   read: key => rows.get(key) || null,
   write(key, value, expected, summary = null) {
@@ -24,7 +26,36 @@ export function memoryRecords() {
    rows.set(key, { value, revision, summary });
    return revision;
   },
-  list: prefix => [...rows].filter(([key, row]) => key.startsWith(prefix) && row.summary).map(([, row]) => row.summary)
+  list: prefix => [...rows].filter(([key, row]) => key.startsWith(prefix) && row.summary).map(([, row]) => row.summary),
+  reserveBackgroundRemoval(userId, limit = 2) {
+   const now = Date.now();
+   for (const [reservation, value] of backgroundReservations) if (value.expires <= now) backgroundReservations.delete(reservation);
+   const used = backgroundUsage.get(userId) || 0;
+   const pending = [...backgroundReservations.values()].filter(value => value.userId === userId).length;
+   if (used + pending >= limit) return { allowed: false, used, remaining: 0, limit };
+   const reservation = id();
+   backgroundReservations.set(reservation, { userId, expires: now + 180000 });
+   return { allowed: true, id: reservation, used, remaining: Math.max(0, limit - used - pending - 1), limit };
+  },
+  commitBackgroundRemoval(userId, reservation, limit = 2) {
+   const pending = backgroundReservations.get(reservation);
+   if (!pending || pending.userId !== userId || pending.expires <= Date.now()) return null;
+   backgroundReservations.delete(reservation);
+   const used = (backgroundUsage.get(userId) || 0) + 1;
+   backgroundUsage.set(userId, used);
+   return { used, remaining: Math.max(0, limit - used), limit };
+  },
+  releaseBackgroundRemoval(userId, reservation) {
+   const pending = backgroundReservations.get(reservation);
+   if (pending?.userId === userId) backgroundReservations.delete(reservation);
+  },
+  getBackgroundQuota(userId, limit = 2) {
+   const now = Date.now();
+   for (const [reservation, value] of backgroundReservations) if (value.expires <= now) backgroundReservations.delete(reservation);
+   const used = backgroundUsage.get(userId) || 0;
+   const pending = [...backgroundReservations.values()].filter(value => value.userId === userId).length;
+   return { used, pending, remaining: Math.max(0, limit - used - pending), limit };
+  }
  };
 }
 
