@@ -24,7 +24,7 @@ export function avatarUploadMarkup(data, escape, icon = () => '') {
        ${icon('sparkles')} حذف پس‌زمینه و خروجی PNG
       </button>
       ${hasOriginal ? '<button type="button" id="restoreAvatarOriginal" class="textbutton">بازگردانی تصویر اصلی</button>' : ''}
-      <small id="avatarBgStatus" aria-live="polite">پردازش روی دستگاه خودت انجام می‌شود؛ بار اول مدل هوش مصنوعی دانلود و برای دفعات بعد ذخیره می‌شود.</small>
+      <small id="avatarBgStatus" aria-live="polite">حذف پس‌زمینه با سرویس آنلاین remove.bg انجام می‌شود؛ تصویر اصلی برای بازگردانی نگه داشته می‌شود.</small>
       <button type="button" id="removeAvatar" class="textbutton">حذف تصویر</button>
      </div>` : ''}
    </div>
