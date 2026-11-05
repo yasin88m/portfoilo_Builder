@@ -89,3 +89,35 @@ body.preview-expanded{overflow:hidden}
 
 /* Avatar background-removal controls and transparent PNG preview. */
 .avatar-upload{align-items:flex-start}.avatar-upload .avatar{flex:0 0 62px;object-fit:contain;background-color:#f7f6fb;background-image:linear-gradient(45deg,#e4e1ed 25%,transparent 25%),linear-gradient(-45deg,#e4e1ed 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e4e1ed 75%),linear-gradient(-45deg,transparent 75%,#e4e1ed 75%);background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0}.avatar-upload-content{flex:1;min-width:0}.avatar-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}.avatar-tools .button{font-size:11px;min-height:36px;padding:8px 12px}.avatar-tools .button:disabled{opacity:.55;cursor:wait}.avatar-tools small{flex-basis:100%;font-size:10px;line-height:1.8;color:var(--muted)}.avatar-tools .textbutton{font-size:10px}
+
+/* Avatar upload and background-removal controls: consistent on desktop and mobile. */
+.avatar-upload{display:grid;grid-template-columns:104px minmax(0,1fr);align-items:start;gap:16px;padding:16px;margin-bottom:18px;border:1px solid var(--line);border-radius:16px;background:var(--glass)}
+.avatar-preview-wrap{width:104px;min-height:124px;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line);border-radius:14px;background-color:var(--input);background-image:linear-gradient(45deg,#7772 25%,transparent 25%),linear-gradient(-45deg,#7772 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#7772 75%),linear-gradient(-45deg,transparent 75%,#7772 75%);background-size:14px 14px;background-position:0 0,0 7px,7px -7px,-7px 0}
+.avatar-upload .avatar{width:100%;height:124px;object-fit:contain;border-radius:12px;background:transparent}
+.avatar-upload .avatar-empty{display:grid;place-items:center;font-size:42px;color:var(--purple);background:transparent}
+.avatar-upload-content{min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:9px}
+.avatar-upload-heading{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.avatar-upload-heading strong{font-size:13px;color:var(--ink)}
+.avatar-file-state{font-size:10px;color:#32b58d;background:#32b58d18;border:1px solid #32b58d33;border-radius:20px;padding:3px 9px}
+.avatar-file-input{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;clip-path:inset(50%)!important;border:0!important}
+.avatar-file-input:focus-visible+.avatar-file-button{outline:3px solid #39c8da;outline-offset:3px}
+.avatar-file-button{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;min-height:40px!important;padding:9px 16px!important;margin:0;cursor:pointer;background:var(--soft)!important;color:var(--ink)!important;border:1px solid var(--line)!important}
+.avatar-help{font-size:10px;line-height:1.9;color:var(--muted)}
+.avatar-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap;width:100%;margin-top:2px}
+.avatar-tools .avatar-bg-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border:1px solid #c9a9ff88;background:linear-gradient(110deg,#9b4dff,#6735d7);color:#fff;box-shadow:0 7px 24px #8b45ff45,0 0 22px #a56bff33}
+.avatar-tools .avatar-bg-button:hover{transform:translateY(-1px);box-shadow:0 10px 30px #8b45ff66}
+.avatar-tools .avatar-bg-button:disabled{opacity:.6;cursor:wait;transform:none}
+.avatar-tools small{flex-basis:100%;font-size:10px;line-height:1.9;color:var(--muted)}
+.avatar-tools .textbutton{font-size:11px;min-height:36px}
+@media(max-width:620px){
+ .avatar-upload{grid-template-columns:78px minmax(0,1fr);gap:12px;padding:12px}
+ .avatar-preview-wrap{width:78px;min-height:108px}
+ .avatar-upload .avatar{height:108px}
+ .avatar-upload-heading{align-items:flex-start;flex-direction:column;gap:4px}
+ .avatar-upload-heading strong{font-size:12px}
+ .avatar-file-button{width:100%;min-height:42px!important;padding:8px 10px!important;font-size:11px!important}
+ .avatar-tools{gap:7px}
+ .avatar-tools .avatar-bg-button{width:100%;min-height:46px;padding:10px 9px;font-size:11px}
+ .avatar-tools .textbutton{min-height:40px}
+}
+@media(max-width:360px){.avatar-upload{grid-template-columns:68px minmax(0,1fr);gap:9px;padding:10px}.avatar-preview-wrap{width:68px}.avatar-tools .avatar-bg-button{font-size:10px}}
