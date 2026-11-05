@@ -3,7 +3,7 @@ import http from 'node:http';
 import { accountRoutes, memoryRecords } from './accounts.mjs';
 import {randomBytes,createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {normalize,portfolioHTML} from './public/shared.js';
-export function createPortfolioServer({env, origin, loadAsset, authStore, records = memoryRecords()}) {
+export function createPortfolioServer({env, origin, loadAsset, authStore, records = memoryRecords(), fetchImpl = fetch}) {
 const configured=Boolean(env.GITHUB_CLIENT_ID&&env.GITHUB_CLIENT_SECRET&&env.SESSION_SECRET?.length>=32&&env.GITHUB_DATA_REPO&&env.GITHUB_DATA_TOKEN);
 const memory = new Map();
 const store = authStore || {
@@ -25,6 +25,16 @@ function signature(s){return createHmac('sha256',env.SESSION_SECRET||'local-deve
 function cookie(name,value,maxAge){return `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${origin.startsWith('https:')?'; Secure':''}`;}
 function cookies(req){return Object.fromEntries((req.headers.cookie||'').split(';').filter(x=>x.includes('=')).map(x=>{const i=x.indexOf('=');return[x.slice(0,i).trim(),x.slice(i+1)];}));}
 async function session(req){const value=cookies(req).pb_session||'',i=value.lastIndexOf('.'),id=value.slice(0,i),sig=value.slice(i+1),expected=signature(id);if(sig.length!==expected.length||!timingSafeEqual(Buffer.from(sig),Buffer.from(expected)))return null;const s=await store.get("session:"+id);return s&&s.expires>Date.now()?s:null;}
+async function backgroundUserId(req) {
+ const token = cookies(req).pb_account || '';
+ if (/^[a-f0-9]{64}$/.test(token)) {
+  const account = await store.get('account-session:' + token);
+  if (account?.expires > Date.now() && account.user?.id) return 'account:' + String(account.user.id);
+ }
+ const githubSession = await session(req);
+ if (githubSession?.user?.id) return 'github:' + String(githubSession.user.id);
+ return null;
+}
 function json(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(body));}
 async function github(path,options={},token=env.GITHUB_DATA_TOKEN){const res=await fetch(`https://api.github.com${path}`,{...options,headers:{Accept:'application/vnd.github+json',Authorization:`Bearer ${token}`,'X-GitHub-Api-Version':'2022-11-28','User-Agent':'portfoilo-builder',...options.headers},signal:AbortSignal.timeout(15000)});const body=await res.json();if(!res.ok){const err=Error('ارتباط با مخزن انجام نشد. تنظیمات سرور یا دسترسی را بررسی کنید.');err.status=res.status;throw err;}return body;}
 async function ensurePrivateRepo(){if(!/^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_DATA_REPO||''))throw Error('مخزن داده تنظیم نشده است');const repo=await github(`/repos/${env.GITHUB_DATA_REPO}`);if(!repo.private)throw Error('ذخیره اطلاعات فقط در مخزن خصوصی مجاز است.');}
@@ -117,38 +127,56 @@ return http.createServer(async(req,res)=>{
  if (['/builder','/preview-frame','/account'].includes(path)) res.setHeader('X-Robots-Tag','noindex');
  if(['POST','PUT','DELETE'].includes(req.method)&&req.headers.origin!==origin)return json(res,403,{error:'مبدأ درخواست معتبر نیست'});
  if (await accounts(req, res, path) || res.writableEnded) return;
- if(path==='/api/remove-background'&&req.method==='POST'){
-  if(!env.REMOVE_BG_API_KEY)return json(res,503,{error:'سرویس حذف پس‌زمینه هنوز در تنظیمات Cloudflare فعال نشده است.'});
-  const ip=String(req.headers['cf-connecting-ip']||req.socket.remoteAddress||'unknown');
-  const now=Date.now(),rate=backgroundRates.get(ip)||{count:0,until:now+600000};
-  if(now>=rate.until){rate.count=0;rate.until=now+600000;}
-  rate.count++;backgroundRates.set(ip,rate);
-  if(rate.count>5)return json(res,429,{error:'تعداد درخواست‌های حذف پس‌زمینه برای این اتصال زیاد است؛ ۱۰ دقیقه دیگر دوباره تلاش کن.'});
-  const input=await body(req,5_100_000);
-  const match=/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input?.image||'');
-  if(!match)return json(res,400,{error:'تصویر ارسالی معتبر نیست؛ دوباره تصویر را انتخاب کن.'});
-  const mime=match[1],bytes=Buffer.from(match[2],'base64');
-  if(!bytes.length||bytes.length>4_000_000)return json(res,413,{error:'حجم تصویر برای پردازش بیش از حد مجاز است.'});
-  const extension=mime==='image/jpeg'?'jpg':mime.split('/')[1];
-  const form=new FormData();
-  form.append('image_file',new Blob([bytes],{type:mime}),'portrait.'+extension);
-  form.append('size','auto');
-  const upstream=await fetch('https://api.remove.bg/v1.0/removebg',{
-   method:'POST',headers:{'X-Api-Key':env.REMOVE_BG_API_KEY},body:form,signal:AbortSignal.timeout(60000)
-  });
-  if(!upstream.ok){
-   let detail='';
-   try{const payload=await upstream.json();detail=payload.errors?.[0]?.title||payload.errors?.[0]?.detail||payload.errors?.[0]?.message||'';}catch{}
-   if(upstream.status===402)return json(res,402,{error:'اعتبار یا سهمیه API سرویس remove.bg تمام شده است.'});
-   if(upstream.status===429)return json(res,429,{error:'سرویس remove.bg موقتاً محدودیت درخواست اعمال کرده؛ کمی بعد دوباره تلاش کن.'});
-   return json(res,502,{error:'سرویس remove.bg تصویر را پردازش نکرد.'+(detail?' '+String(detail).slice(0,140):'')});
+ if(path==='/api/background-quota'&&req.method==='GET'){
+   const userId=await backgroundUserId(req);
+   if(!userId)return json(res,401,{error:'برای دیدن سهمیه و استفاده از حذف پس‌زمینه ابتدا وارد حساب کاربری شو.'});
+   const quota=await records.getBackgroundQuota(userId,2);
+   return json(res,200,{limit:2,used:quota.used,remaining:quota.remaining});
   }
-  const output=Buffer.from(await upstream.arrayBuffer());
-  if(!output.length||output.length>15_000_000)return json(res,502,{error:'فایل خروجی سرویس معتبر یا در اندازه مجاز نیست.'});
-  res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store','Content-Length':output.length});
-  return res.end(output);
- }
- if(path==='/api/session')return json(res,200,{configured,user:(await session(req))?.user||null});
+  if(path==='/api/remove-background'&&req.method==='POST'){
+   const userId=await backgroundUserId(req);
+   if(!userId)return json(res,401,{error:'برای استفاده از دو نوبت حذف پس‌زمینه ابتدا وارد حساب کاربری شو.'});
+   if(!env.REMOVE_BG_API_KEY)return json(res,503,{error:'سرویس حذف پس‌زمینه هنوز روی سرور تنظیم نشده است.'});
+   const ip=String(req.headers['cf-connecting-ip']||req.socket.remoteAddress||'unknown');
+   const now=Date.now(),rate=backgroundRates.get(ip)||{count:0,until:now+600000};
+   if(now>=rate.until){rate.count=0;rate.until=now+600000;}
+   rate.count++;backgroundRates.set(ip,rate);
+   if(rate.count>5)return json(res,429,{error:'تعداد درخواست‌ها از این اتصال زیاد است؛ ۱۰ دقیقه دیگر دوباره تلاش کن.'});
+   const input=await body(req,5_100_000);
+   const match=/^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(input?.image||'');
+   if(!match)return json(res,400,{error:'تصویر ارسالی معتبر نیست؛ دوباره تصویر را انتخاب کن.'});
+   const mime=match[1],bytes=Buffer.from(match[2],'base64');
+   if(!bytes.length||bytes.length>4_000_000)return json(res,413,{error:'حجم تصویر برای پردازش بیش از حد مجاز است.'});
+   const reservation=await records.reserveBackgroundRemoval(userId,2);
+   if(!reservation.allowed)return json(res,429,{error:'سهمیه شما تمام شده است؛ هر حساب کاربری فقط ۲ بار می‌تواند پس‌زمینه تصویر را حذف کند.',limit:2,used:reservation.used,remaining:0});
+   let committed=false;
+   try {
+    const extension=mime==='image/jpeg'?'jpg':mime.split('/')[1];
+    const form=new FormData();
+    form.append('image_file',new Blob([bytes],{type:mime}),'portrait.'+extension);
+    form.append('size','auto');
+    const upstream=await fetchImpl('https://api.remove.bg/v1.0/removebg',{
+     method:'POST',headers:{'X-Api-Key':env.REMOVE_BG_API_KEY},body:form,signal:AbortSignal.timeout(60000)
+    });
+    if(!upstream.ok){
+     let detail='';
+     try{const payload=await upstream.json();detail=payload.errors?.[0]?.title||payload.errors?.[0]?.detail||payload.errors?.[0]?.message||'';}catch{}
+     if(upstream.status===402)return json(res,402,{error:'اعتبار یا سهمیه API سرویس remove.bg تمام شده است.'});
+     if(upstream.status===429)return json(res,429,{error:'سرویس remove.bg موقتاً محدودیت درخواست اعمال کرده؛ کمی بعد دوباره تلاش کن.'});
+     return json(res,502,{error:'سرویس remove.bg تصویر را پردازش نکرد.'+(detail?' '+String(detail).slice(0,140):'')});
+    }
+    const output=Buffer.from(await upstream.arrayBuffer());
+    if(!output.length||output.length>15_000_000)return json(res,502,{error:'فایل خروجی سرویس معتبر یا در اندازه مجاز نیست.'});
+    const quota=await records.commitBackgroundRemoval(userId,reservation.id,2);
+    if(!quota)return json(res,503,{error:'ثبت سهمیه کامل نشد؛ لطفاً دوباره تلاش کن.'});
+    committed=true;
+    res.writeHead(200,{'Content-Type':'image/png','Cache-Control':'no-store','Content-Length':output.length,'X-Background-Quota-Limit':'2','X-Background-Quota-Remaining':String(quota.remaining)});
+    return res.end(output);
+   } finally {
+    if(!committed)await records.releaseBackgroundRemoval(userId,reservation.id);
+   }
+  }
+  if(path==='/api/session')return json(res,200,{configured,user:(await session(req))?.user||null});
  if(path==='/auth/login'&&req.method==='GET'){
   if(!configured)return json(res,503,{error:'ورود آنلاین هنوز روی سرور تنظیم نشده است.'});
   const state=randomBytes(24).toString('hex');await store.put("oauth:"+state,{expires:Date.now()+600000});
