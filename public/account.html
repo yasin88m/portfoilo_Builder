@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <title>حساب من | پورتفولیو ساز</title>
+ <link rel="stylesheet" href="/font.css">
+ <link rel="stylesheet" href="/style.css">
+ <script src="/theme.js" defer></script>
+ <script type="module" src="/account.js"></script>
+</head>
+<body>
+ <header class="header">
+  <a class="brand" href="/"><span class="brandmark">P</span>پورتفولیو<span>ساز</span></a>
+  <a class="button secondary" href="/builder">بازگشت به ویزارد</a>
+ </header>
+ <main style="width:min(92%,850px);margin:48px auto">
+  <div class="editor">
+   <p class="eyebrow">PORTFOLIO STUDIO</p>
+   <h1 id="accountTitle">حساب من</h1>
+   <p id="accountStatus" role="status">در حال بررسی حساب…</p>
+   <form id="accountForm" hidden>
+    <p>با نام کاربری و رمز وارد شو یا حساب جدید بساز.</p>
+    <div class="form-grid">
+     <label class="field">نام کاربری انگلیسی<input name="login" dir="ltr" autocomplete="username" required minlength="3" maxlength="32" pattern="[a-zA-Z0-9][a-zA-Z0-9_.\-]{2,31}"></label>
+     <label class="field">رمز عبور<input name="password" type="password" dir="ltr" autocomplete="current-password" required minlength="12" maxlength="128"></label>
+    </div>
+    <div class="actions"><button class="button" value="login">ورود</button><button class="button secondary" value="register">ساخت حساب</button></div>
+   </form>
+   <section id="accountSites" hidden>
+    <div class="actions">
+     <a class="button" href="/builder?new=1">ساخت سایت جدید</a>
+     <a class="button secondary" href="/builder">باز کردن پیش‌نویس دستگاه</a>
+     <button type="button" id="logout" class="textbutton">خروج</button>
+    </div>
+    <div id="siteList"></div>
+   </section>
+  </div>
+ </main>
+</body>
+</html>

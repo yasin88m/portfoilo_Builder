@@ -1,10 +1,17 @@
 import http from 'node:http';
+import { accountRoutes, memoryRecords } from './accounts.mjs';
 import {randomBytes,createHash,createHmac,timingSafeEqual} from 'node:crypto';
 import {normalize,portfolioHTML} from './public/shared.js';
-export function createPortfolioServer({env, origin, loadAsset, authStore}) {
+export function createPortfolioServer({env, origin, loadAsset, authStore, records = memoryRecords()}) {
 const configured=Boolean(env.GITHUB_CLIENT_ID&&env.GITHUB_CLIENT_SECRET&&env.SESSION_SECRET?.length>=32&&env.GITHUB_DATA_REPO&&env.GITHUB_DATA_TOKEN);
 const memory = new Map();
 const store = authStore || {
+ allowAttempt(key) {
+  const count = (memory.get(key)?.count || 0) + 1;
+  if (count > 20) return false;
+  memory.set(key, { count, expires: Date.now() + 300000 });
+  return true;
+ },
  get(key) { return memory.get(key); },
  put(key, value) { memory.set(key, value); },
  remove(key) { memory.delete(key); },
@@ -19,7 +26,7 @@ async function session(req){const value=cookies(req).pb_session||'',i=value.last
 function json(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(body));}
 async function github(path,options={},token=env.GITHUB_DATA_TOKEN){const res=await fetch(`https://api.github.com${path}`,{...options,headers:{Accept:'application/vnd.github+json',Authorization:`Bearer ${token}`,'X-GitHub-Api-Version':'2022-11-28','User-Agent':'portfoilo-builder',...options.headers},signal:AbortSignal.timeout(15000)});const body=await res.json();if(!res.ok){const err=Error('ارتباط با مخزن انجام نشد. تنظیمات سرور یا دسترسی را بررسی کنید.');err.status=res.status;throw err;}return body;}
 async function ensurePrivateRepo(){if(!/^[\w.-]+\/[\w.-]+$/.test(env.GITHUB_DATA_REPO||''))throw Error('مخزن داده تنظیم نشده است');const repo=await github(`/repos/${env.GITHUB_DATA_REPO}`);if(!repo.private)throw Error('ذخیره اطلاعات فقط در مخزن خصوصی مجاز است.');}
-async function body(req){let chunks=[],size=0;for await(const chunk of req){size+=chunk.length;if(size>5_100_000){const err=Error('حجم درخواست بیش از حد مجاز است');err.status=413;throw err;}chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString());}catch{const err=Error('اطلاعات درخواست معتبر نیست');err.status=400;throw err;}}
+async function body(req, limit = 5_100_000){let chunks=[],size=0;for await(const chunk of req){size+=chunk.length;if(size>limit){const err=Error('حجم درخواست بیش از حد مجاز است');err.status=413;throw err;}chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString());}catch{const err=Error('اطلاعات درخواست معتبر نیست');err.status=400;throw err;}}
 const publicationPath = id => `/p/${id}`;
 const publicationFile = id => `/repos/${env.GITHUB_DATA_REPO}/contents/published/${id}.json`;
 
@@ -84,6 +91,7 @@ async function managePublication(req, res) {
 }
 
 function redirect(res,url,headers={}){res.writeHead(302,{Location:url,...headers});res.end();}
+const accounts = accountRoutes({ records, store, origin, cookies, cookie, json, body });
 return http.createServer(async(req,res)=>{
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','DENY');res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; frame-src 'self' about:; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'self'");
  try{
@@ -103,8 +111,9 @@ return http.createServer(async(req,res)=>{
   res.writeHead(200,{'Content-Type':sitemap?'application/xml; charset=utf-8':'text/plain; charset=utf-8'});
   return res.end(req.method==='HEAD'?undefined:content);
  }
- if (['/builder','/preview-frame'].includes(path)) res.setHeader('X-Robots-Tag','noindex');
+ if (['/builder','/preview-frame','/account'].includes(path)) res.setHeader('X-Robots-Tag','noindex');
  if(['POST','PUT','DELETE'].includes(req.method)&&req.headers.origin!==origin)return json(res,403,{error:'مبدأ درخواست معتبر نیست'});
+ if (await accounts(req, res, path) || res.writableEnded) return;
  if(path==='/api/session')return json(res,200,{configured,user:(await session(req))?.user||null});
  if(path==='/auth/login'&&req.method==='GET'){
   if(!configured)return json(res,503,{error:'ورود آنلاین هنوز روی سرور تنظیم نشده است.'});
@@ -156,7 +165,7 @@ return http.createServer(async(req,res)=>{
   res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache'});
   return res.end(req.method==='HEAD'?undefined:`<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>پیش‌نمایش پورتفولیو</title><style id="portfolio-style"></style><style>html{scrollbar-width:none;scroll-behavior:auto;overflow-anchor:none}::-webkit-scrollbar{display:none}</style></head><body><script>${bridge}</script></body></html>`);
  }
- const files={'/assets/hero/builder-reference.png':['assets/hero/builder-reference.png','image/png'],'/customize.js':['customize.js','text/javascript'],'/customize-ui.js':['customize-ui.js','text/javascript'],'/elementor.js':['elementor.js','text/javascript'],'/elementor-runtime.js':['elementor-runtime.js','text/javascript'],'/wordpress.js':['wordpress.js','text/javascript'],'/wordpress-runtime.js':['wordpress-runtime.js','text/javascript'],'/zip.js':['zip.js','text/javascript'],'/icons.js':['icons.js','text/javascript'],'/motion.js':['motion.js','text/javascript'],'/builder-scroll.js':['builder-scroll.js','text/javascript'],'/preview-bridge.js':['preview-bridge.js','text/javascript'],'/preview.js':['preview.js','text/javascript'],'/demo.js':['demo.js','text/javascript'],'/assets/demo/man.png':['assets/demo/man.png','image/png'],'/assets/demo/woman.png':['assets/demo/woman.png','image/png'],'/assets/demo/architecture.webp':['assets/demo/architecture.webp','image/webp'],'/assets/demo/dashboard.webp':['assets/demo/dashboard.webp','image/webp'],'/assets/demo/branding.webp':['assets/demo/branding.webp','image/webp'],'/builder':['builder.html','text/html'],'/theme.js':['theme.js','text/javascript'],'/landing.js':['landing.js','text/javascript'],'/font.css':['font.css','text/css'],'/font.js':['font.js','text/javascript'],'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
+ const files={'/account':['account.html','text/html'],'/account.js':['account.js','text/javascript'],'/assets/hero/builder-reference.png':['assets/hero/builder-reference.png','image/png'],'/customize.js':['customize.js','text/javascript'],'/customize-ui.js':['customize-ui.js','text/javascript'],'/elementor.js':['elementor.js','text/javascript'],'/elementor-runtime.js':['elementor-runtime.js','text/javascript'],'/wordpress.js':['wordpress.js','text/javascript'],'/wordpress-runtime.js':['wordpress-runtime.js','text/javascript'],'/zip.js':['zip.js','text/javascript'],'/icons.js':['icons.js','text/javascript'],'/motion.js':['motion.js','text/javascript'],'/builder-scroll.js':['builder-scroll.js','text/javascript'],'/preview-bridge.js':['preview-bridge.js','text/javascript'],'/preview.js':['preview.js','text/javascript'],'/demo.js':['demo.js','text/javascript'],'/assets/demo/man.png':['assets/demo/man.png','image/png'],'/assets/demo/woman.png':['assets/demo/woman.png','image/png'],'/assets/demo/architecture.webp':['assets/demo/architecture.webp','image/webp'],'/assets/demo/dashboard.webp':['assets/demo/dashboard.webp','image/webp'],'/assets/demo/branding.webp':['assets/demo/branding.webp','image/webp'],'/builder':['builder.html','text/html'],'/theme.js':['theme.js','text/javascript'],'/landing.js':['landing.js','text/javascript'],'/font.css':['font.css','text/css'],'/font.js':['font.js','text/javascript'],'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/shared.js':['shared.js','text/javascript'],'/style.css':['style.css','text/css']};
  if(!files[path])return json(res,404,{error:'صفحه پیدا نشد'});
  const [file,type]=files[path];
  let content=await loadAsset(file);
@@ -165,6 +174,6 @@ return http.createServer(async(req,res)=>{
   content=content.toString('utf8').replace('</head>','<meta name="google-site-verification" content="'+verification+'"></head>');
  }
  res.writeHead(200,{'Content-Type':type+(type.startsWith('image/')?'':'; charset=utf-8'),'Cache-Control':'no-cache'});res.end(req.method==='HEAD'?undefined:content);
- }catch(err){json(res,err.status===413?413:502,{error:err.message||'خطای سرور؛ دوباره تلاش کنید.'});}
+ }catch(err){json(res,[400,413].includes(err.status)?err.status:502,{error:err.message||'خطای سرور؛ دوباره تلاش کنید.'});}
 });
 }
