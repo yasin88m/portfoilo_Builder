@@ -111,7 +111,11 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
   const token = cookies(req).pb_account || '';
   if (!/^[a-f0-9]{64}$/.test(token)) return null;
   const row = await store.get('account-session:' + token);
-  return row?.expires > Date.now() ? row.user : null;
+  if (row?.expires > Date.now() && row.user) {
+   await indexAdminUser(records, row.user, 'account', false);
+   return row.user;
+  }
+  return null;
  }
  async function authenticate(req, res, register) {
   const input = await body(req, 4096);
