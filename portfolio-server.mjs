@@ -103,6 +103,7 @@ return http.createServer(async(req,res)=>{
   nextCleanup = now + 60000;
   for (const [key,value] of memory) if (value.expires <= now) memory.delete(key);
   for (const [key,value] of rates) if (value.until <= now) rates.delete(key);
+  for (const [key,value] of backgroundRates) if (value.until <= now) backgroundRates.delete(key);
  }
  if (['GET','HEAD'].includes(req.method) && ['/robots.txt','/sitemap.xml'].includes(path)) {
   const sitemap = path === '/sitemap.xml';
