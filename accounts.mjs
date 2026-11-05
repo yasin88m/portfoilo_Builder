@@ -1,17 +1,16 @@
-import { randomBytes, timingSafeEqual, webcrypto } from 'node:crypto';
+import { randomBytes, timingSafeEqual, scrypt } from 'node:crypto';
 import { normalize, portfolioHTML } from './public/shared.js';
 
 const id = () => randomBytes(16).toString('hex');
 const siteId = /^[a-f0-9]{32}$/;
 const sessionTTL = 7 * 86400;
-const encoder = new TextEncoder();
-const rounds = 600000;
-
-export async function passwordHash(password, salt) {
- const key = await webcrypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
- return Buffer.from(await webcrypto.subtle.deriveBits({
-  name: 'PBKDF2', hash: 'SHA-256', salt: Buffer.from(salt, 'hex'), iterations: rounds
- }, key, 256));
+export function passwordHash(password, salt) {
+ return new Promise((resolve, reject) => {
+  scrypt(password, Buffer.from(salt, 'hex'), 32, { N: 32768, r: 8, p: 3, maxmem: 48 * 1024 * 1024 }, (error, hash) => {
+   if (error) reject(error);
+   else resolve(hash);
+  });
+ });
 }
 
 export function memoryRecords() {

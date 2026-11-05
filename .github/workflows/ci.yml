@@ -20,6 +20,7 @@ jobs:
             public/
             server.mjs
             portfolio-server.mjs
+            accounts.mjs
             worker.mjs
             wrangler.jsonc
             package.json
