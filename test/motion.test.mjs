@@ -1,17 +1,62 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import vm from 'node:vm';
-import {readFile} from 'node:fs/promises';
-test('hero floats, paints purple pointer trails and supports an explicit reduced-motion override',async()=>{
- const code=(await readFile(new URL('../public/motion.js',import.meta.url),'utf8')).replace('export function','function');
- for(const reduced of [false,true]){
-  const events={},frames=[];let arcs=0;const showcase={style:{}},toggle={setAttribute(){}};
-  const ctx={setTransform(){},clearRect(){},beginPath(){},arc(){arcs++;},fill(){}};
-  const stage={querySelector:()=>showcase,style:{setProperty(){}}};
-  const document={hidden:false,querySelector:s=>s==='#motionToggle'?toggle:stage,createElement:()=>({setAttribute(){},getContext:()=>ctx}),body:{append(){}},documentElement:{dataset:{},addEventListener(){}},addEventListener(){}};
-  const context={document,window:{PointerEvent:true},localStorage:{getItem:()=>null,setItem(){}},matchMedia:()=>({matches:reduced,addEventListener(){}}),addEventListener:(name,fn)=>events[name]=fn,requestAnimationFrame:fn=>{frames.push(fn);return frames.length;},cancelAnimationFrame(){frames.length=0;},devicePixelRatio:1,innerWidth:1366,innerHeight:768,Math};
-  vm.runInNewContext(code+';initLandingMotion();',context);
-  if(reduced){assert.equal(frames.length,0);assert.equal(document.documentElement.dataset.motion,'off');toggle.onclick();}
-  assert.equal(document.documentElement.dataset.motion,'on');events.pointermove({pointerType:'mouse',clientX:400,clientY:300});frames.shift()(16);const first=showcase.style.transform;frames.shift()(48);assert.notEqual(showcase.style.transform,first);assert.ok(arcs>0);assert.equal(ctx.shadowColor,'#b478ff');toggle.onclick();assert.equal(document.documentElement.dataset.motion,'off');assert.equal(frames.length,0);
- }
+import { initLandingMotion } from '../public/motion.js';
+
+test('hero grid stays hidden until hover, clears a space around the pointer, and fades on exit', t => {
+  const handlers = {};
+  const frames = [];
+  const visible = [];
+  const context = {
+    setTransform() {},
+    clearRect() { visible.length = 0; },
+    beginPath() {},
+    arc(x, y) { visible.push({ x, y, opacity: this.globalAlpha }); },
+    fill() {}
+  };
+  const canvas = { getContext: () => context, setAttribute() {} };
+  const hero = {
+    querySelector: () => null,
+    prepend(element) { assert.equal(element, canvas); },
+    addEventListener(name, handler) { handlers[name] = handler; },
+    getBoundingClientRect: () => ({ left: 40, top: 80, width: 900, height: 500 })
+  };
+  const globals = {
+    document: { querySelector: () => hero, createElement: () => canvas },
+    window: { devicePixelRatio: 2, addEventListener() {} },
+    ResizeObserver: class { observe() {} },
+    requestAnimationFrame: callback => frames.push(callback)
+  };
+  for (const [name, value] of Object.entries(globals)) {
+    Object.defineProperty(globalThis, name, { configurable: true, value });
+    t.after(() => { delete globalThis[name]; });
+  }
+  initLandingMotion();
+  let time = 16;
+  function tick() {
+    frames.shift()?.(time);
+    time += 16;
+  }
+  tick();
+  assert.equal(canvas.className, 'hero-dot-field');
+  assert.equal(visible.length, 0);
+  assert.equal(frames.length, 0);
+
+  handlers.pointermove({ pointerType: 'touch', clientX: 340, clientY: 320 });
+  assert.equal(frames.length, 0);
+  handlers.pointermove({ pointerType: 'mouse', clientX: 340, clientY: 320 });
+  for (let index = 0; index < 45; index++) tick();
+  assert.ok(visible.length > 30);
+  assert.ok(visible.every(dot => {
+    const distance = Math.hypot(dot.x - 300, dot.y - 240);
+    return distance > 27 && distance < 136;
+  }));
+
+  const peak = Math.max(...visible.map(dot => dot.opacity));
+  handlers.pointerleave();
+  tick();
+  assert.ok(visible.length > 0);
+  assert.ok(Math.max(...visible.map(dot => dot.opacity)) < peak);
+  for (let index = 0; index < 60; index++) tick();
+  assert.equal(visible.length, 0);
+  assert.equal(frames.length, 0);
 });
