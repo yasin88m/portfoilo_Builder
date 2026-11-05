@@ -71,7 +71,7 @@ export function wordpressFiles(raw){
  add('footer.php',`<?php if (!defined('ABSPATH')) { exit; } ?><?php $pfb_footer=function_exists('elementor_theme_do_location') && elementor_theme_do_location('footer'); if (!$pfb_footer && pfb_e_available() && get_theme_mod('pfb_visual_chrome',false)) { ob_start(); $pfb_footer=pfb_e_render_location('footer'); $pfb_markup=ob_get_clean(); if ($pfb_footer) { echo '<footer class="pfb-visual-footer">'.$pfb_markup.'</footer>'; } } if (!$pfb_footer) : ?><footer><span><?php echo esc_html(pfb_value('name')); ?> · <?php echo esc_html(pfb_value('title')); ?></span><span><?php echo esc_html(pfb_label('footerText')); ?></span><?php pfb_social_footer(); ?></footer><?php endif; wp_footer(); ?></body></html>\n`);
  let main=html.match(/<main>([\s\S]*)<\/main>/)[1];
  // Structural lists are rendered from WordPress data, not an embedded HTML snapshot.
- main=main.replace(/(<div class="project-grid">)[\s\S]*?(<\/div><\/section>)/g,'$1<?php pfb_project_cards(); ?>$2');
+ main=main.replace(/(<div class="project-grid(?: [^"]*)?">)[\s\S]*?(<\/div><\/section>)/g,'$1<?php pfb_project_cards(); ?>$2');
  main=main.replace(/(<div class="services-grid">)[\s\S]*?(<\/div><\/section>)/g,'$1<?php pfb_service_cards(); ?>$2');
  main=main.replace(/(<div class="skill-grid[^"]*">)[\s\S]*?(<\/div><\/section>)/g,'$1<?php pfb_skill_cards(); ?>$2');
  main=main.replace(/<div class="skill-strip">[\s\S]*?<\/div>/g,'<div class="skill-strip"><?php pfb_skill_strip(); ?></div>');
