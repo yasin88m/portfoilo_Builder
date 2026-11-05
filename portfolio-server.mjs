@@ -110,8 +110,8 @@ async function authenticatedUser(req) {
 }
 
 function adminAccess(user) {
- const logins = String(env.ADMIN_LOGINS || '').split(/[,;\\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
- const ids = String(env.ADMIN_USER_IDS || '142738636').split(/[,;\\s]+/).map(x => x.trim()).filter(Boolean);
+ const logins = String(env.ADMIN_LOGINS || '').split(/[,;\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean);
+ const ids = String(env.ADMIN_USER_IDS || '142738636').split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
  return logins.includes(String(user?.login || '').toLowerCase()) || ids.includes(String(user?.id || ''));
 }
 
