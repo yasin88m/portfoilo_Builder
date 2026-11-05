@@ -6,10 +6,15 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.mjs",
     "test": "node --test",
-    "check": "node --check server.mjs && node --check public/customize.js && node --check public/customize-ui.js && node --check public/app.js && node --check public/shared.js && node --check public/theme.js && node --check public/landing.js && node --check public/demo.js && node --check public/preview.js && node --check public/icons.js && node --check public/motion.js && node --check public/builder-scroll.js && node --check public/preview-bridge.js && node --check public/wordpress.js && node --check public/wordpress-runtime.js && node --check public/zip.js && node --check public/elementor.js && node --check public/elementor-runtime.js",
-    "dev": "node --env-file-if-exists=.env server.mjs"
+    "check": "node --check server.mjs && node --check portfolio-server.mjs && node --check worker.mjs && node --check public/customize.js && node --check public/customize-ui.js && node --check public/app.js && node --check public/shared.js && node --check public/theme.js && node --check public/landing.js && node --check public/demo.js && node --check public/preview.js && node --check public/icons.js && node --check public/motion.js && node --check public/builder-scroll.js && node --check public/preview-bridge.js && node --check public/wordpress.js && node --check public/wordpress-runtime.js && node --check public/zip.js && node --check public/elementor.js && node --check public/elementor-runtime.js",
+    "dev": "node --env-file-if-exists=.env server.mjs",
+    "deploy:cloudflare": "wrangler deploy",
+    "dev:cloudflare": "wrangler dev"
   },
   "engines": {
     "node": ">=22"
+  },
+  "devDependencies": {
+    "wrangler": "4.157.0"
   }
 }

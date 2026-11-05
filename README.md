@@ -183,3 +183,12 @@ docker run --env-file .env -p 3000:3000 portfoilo-builder
 ### انتشار با لینک ثابت
 
 پس از پیکربندی ورود گیت‌هاب و مخزن خصوصی داده، در مرحلهٔ «دامنه و خروجی» گزینهٔ «انتشار و ساخت لینک» فعال است. آدرس عمومی هر حساب در مسیر `/p/<GitHub user ID>` ثابت می‌ماند. پیش‌نویس و نسخهٔ منتشرشده جدا ذخیره می‌شوند. دکمهٔ «به‌روزرسانی سایت» آخرین پیش‌نویس را روی همان آدرس منتشر می‌کند و «لغو انتشار» آدرس را تا انتشار دوباره غیرفعال می‌کند. برای استفاده از لینک روی اینترنت، برنامه باید روی هاست Node.js یا Docker اجرا شود و `APP_ORIGIN` روی آدرس عمومی برنامه تنظیم باشد.
+
+## انتشار روی Cloudflare و ثبت در گوگل
+
+1. در Cloudflare Dashboard، از **Workers & Pages → Create application → Import a repository** مخزن `yasin88m/portfoilo_Builder` را انتخاب کنید. اتصال GitHub را برای همین مخزن مجاز کنید.
+2. شاخهٔ تولید `main` و ریشهٔ مخزن را انتخاب کنید. دستور Build می‌تواند خالی باشد و دستور Deploy برابر `npm run deploy:cloudflare` است. فایل `wrangler.jsonc` مسیر Worker، فایل‌های سایت و ذخیرهٔ نشست‌ها را تنظیم می‌کند. برای انتشار اولیه می‌توان از آدرس `workers.dev` استفاده کرد.
+3. برای فعال شدن ورود و ذخیره و انتشار آنلاین پورتفولیو، در تنظیمات Worker مقدار `APP_ORIGIN` را روی آدرس نهایی بدون اسلش انتهایی بگذارید. `GITHUB_CLIENT_ID` و `GITHUB_DATA_REPO` را به عنوان متغیر و `GITHUB_CLIENT_SECRET`، `GITHUB_DATA_TOKEN` و `SESSION_SECRET` را به عنوان Secret ثبت کنید. Callback برنامهٔ GitHub OAuth باید `https://YOUR-ADDRESS/auth/callback` باشد. اجرای سازنده و خروجی HTML و وردپرس بدون این متغیرها هم امکان‌پذیر است.
+4. در [Google Search Console](https://search.google.com/search-console) مالکیت آدرس نهایی را تأیید کنید. اگر از دامنهٔ شخصی استفاده می‌کنید می‌توانید رکورد TXT تأیید را در DNS اضافه کنید. برای آدرس `workers.dev` از نوع URL prefix و روش HTML tag استفاده کنید و فقط مقدار `content` را در متغیر `GOOGLE_SITE_VERIFICATION` بگذارید. سپس `/sitemap.xml` را در Sitemaps ثبت کنید و از URL Inspection برای درخواست بررسی صفحهٔ اصلی استفاده کنید. گوگل زمان و نتیجهٔ ایندکس را تعیین می‌کند.
+
+نقشهٔ سایت فعلاً صفحهٔ اصلی پورتفولیو ساز را فهرست می‌کند. برای اجرای محلی در محیط Cloudflare از `npm ci` و سپس `npm run dev:cloudflare` استفاده کنید.

@@ -1,0 +1,17 @@
+{
+  "name": "portfolio-builder",
+  "main": "worker.mjs",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "html_handling": "none",
+    "run_worker_first": true
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "PORTFOLIO_AUTH", "class_name": "PortfolioAuth" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PortfolioAuth"] }]
+}

@@ -19,7 +19,11 @@ jobs:
           path: |
             public/
             server.mjs
+            portfolio-server.mjs
+            worker.mjs
+            wrangler.jsonc
             package.json
+            package-lock.json
             .env.example
             Dockerfile
             README.md
