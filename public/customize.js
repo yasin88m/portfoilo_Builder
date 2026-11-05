@@ -14,7 +14,31 @@ export function normalizeDesign(input){
  for(const [key,min,max]of [['fontSize',12,22],['headingSize',28,76],['radius',0,40],['spacing',24,90],['projectColumns',2,3]])if(d[key]!==undefined&&Number.isFinite(Number(d[key])))out[key]=Math.round(Math.max(min,Math.min(max,Number(d[key]))));
  if(Array.isArray(d.order))out.order=[...new Set(d.order.filter(k=>Object.hasOwn(sectionLabels,k)))];return out;
 }
-export function resolveColors(p){const [background,surface,text,accent]=themeColors[p.template]||themeColors.codecraft;const custom=p.design?.colors||{};const base={background,surface,text,accent:p.paletteOverride?hexColor(p.color,accent):accent,heading:text,heroBackground:p.template==='learnhouse'?'#194e4b':background,heroText:['learnhouse','evergreen'].includes(p.template)?'#ffffff':text};const resolved={...base,...custom};resolved.heroHeading=custom.heroHeading||custom.heading||resolved.heroText;resolved.buttonBg=custom.buttonBg||resolved.accent;const rgb=resolved.buttonBg.slice(1).match(/../g).map(x=>parseInt(x,16));resolved.buttonText=custom.buttonText||(rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>165?'#14202c':'#ffffff');resolved.skill=custom.skill||resolved.accent;return resolved;}
+// Keep each tone's lightness and opacity while moving it into the chosen hue.
+export function paletteTone(color, palette) {
+ if (!palette) return color;
+ const rgb = hex => [0, 2, 4].map(index => parseInt(hex.slice(index, index + 2), 16) / 255);
+ const literal = color.slice(1);
+ const expanded = literal.length <= 4 ? [...literal].map(char => char + char).join('') : literal;
+ const source = rgb(expanded);
+ const min = Math.min(...source);
+ const max = Math.max(...source);
+ if (max === min) return color;
+
+ const target = rgb(palette.slice(1));
+ const low = Math.min(...target);
+ const high = Math.max(...target);
+ const chroma = high - low;
+ const lightness = (min + max) / 2;
+ const saturation = chroma ? chroma / (1 - Math.abs(high + low - 1)) : 0;
+ const spread = (max - min) * Math.min(1, saturation * 2);
+ const hex = target.map(channel => {
+  const value = chroma ? lightness + spread * ((channel - low) / chroma - .5) : lightness;
+  return Math.round(value * 255).toString(16).padStart(2, '0');
+ }).join('');
+ return '#' + hex + expanded.slice(6);
+}
+export function resolveColors(p){const palette=p.paletteOverride?hexColor(p.color):'';const [background,surface,text,accent]=(themeColors[p.template]||themeColors.codecraft).map(color=>paletteTone(color,palette));const custom=p.design?.colors||{};const base={background,surface,text,accent:p.paletteOverride?hexColor(p.color,accent):accent,heading:text,heroBackground:p.template==='learnhouse'?paletteTone('#194e4b',palette):background,heroText:['learnhouse','evergreen'].includes(p.template)?'#ffffff':text};const resolved={...base,...custom};resolved.heroHeading=custom.heroHeading||custom.heading||resolved.heroText;resolved.buttonBg=custom.buttonBg||resolved.accent;const rgb=resolved.buttonBg.slice(1).match(/../g).map(x=>parseInt(x,16));resolved.buttonText=custom.buttonText||(rgb[0]*.299+rgb[1]*.587+rgb[2]*.114>165?'#14202c':'#ffffff');resolved.skill=custom.skill||resolved.accent;return resolved;}
 export function copyFor(p,key){
  const defaults={availabilityText:'برای گفت‌وگو در ارتباط باشیم',toolsLabel:'ابزارها و مهارت‌های من',projectMetric:'پروژه منتخب',skillMetric:'مهارت تخصصی',locationMetric:'محل فعالیت',socialButton:'شبکه اجتماعی من',backTop:'بازگشت به بالا',heroTitle:`سلام، من\n${p.name||'نام شما'} هستم.`,aboutEyebrow:'کمی نزدیک‌تر',aboutHeading:p.template==='codecraft'?'از مسئله، تا راه‌حل دیجیتال.':p.template==='learnhouse'?'با تجربه، یک قدم جلوتر.':'پشت هر کار خوب، یک داستان وجود دارد.',skillsEyebrow:'مهارت‌های من',skillsHeading:'تخصص‌هایی برای خلق ارزش',projectsEyebrow:'منتخبی از کارهای من',projectsHeading:['amethyst','learnhouse','eduviolet'].includes(p.template)?'تجربه‌ها و پروژه‌های منتخب':'ایده‌هایی که شکل گرفته‌اند.',servicesEyebrow:'همراه مسیر شما',servicesHeading:'چطور می‌توانم کمک کنم؟',contactEyebrow:'شروع یک همکاری تازه',contactHeading:'برای قدم بعدی آماده‌ای؟',contactText:'از شنیدن ایده‌ها و پیشنهادهای شما خوشحال می‌شوم.',educationHeading:'تحصیلات و گواهینامه‌ها',primaryButton:'مشاهده کارهای من',secondaryButton:'گفت‌وگو کنیم',navButton:'همکاری کنیم',projectButton:'مشاهده پروژه',serviceButton:'درباره این خدمت بپرسید',aboutButton:'بیشتر با هم آشنا شویم',navAbout:'درباره من',navProjects:'نمونه‌کارها',navContact:'تماس',footerText:'ساخته‌شده با پورتفولیو ساز ✦'};
  return p.design?.text?.[key]??defaults[key]??'';

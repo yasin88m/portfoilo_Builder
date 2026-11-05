@@ -23,3 +23,17 @@ test('every template carries custom design and real 0/50/100 skill bars through 
   const doc=JSON.parse(get('elementor/page.json')),all=nodes(doc.content),progress=all.filter(n=>n.widgetType==='progress');assert.deepEqual(progress.map(n=>n.settings.percent.size),[50,0,100]);assert.ok(progress.every(n=>n.settings.bar_color==='#098765'));assert.ok(all.some(n=>n.settings.title==='کارهای سفارشی'));assert.ok(all.some(n=>n.widgetType==='button'&&n.settings.text==='دیدن آثار'&&n.settings.background_color==='#123456'));assert.equal(doc.content[1].settings._element_id,'projects');assert.ok(!all.some(n=>n.settings._element_id==='services'));
  }
 });
+
+test('a palette recolors coral surfaces and gradient tones while preserving manual overrides', () => {
+ const input = {template:'coral', color:'#2563eb', paletteOverride:true, design:{colors:{buttonBg:'#123456'}}};
+ const html = portfolioHTML(input);
+ const rgb = color => color.slice(1).match(/../g).map(channel => parseInt(channel,16));
+ for (const token of ['bg','panel','tone-ffb79888','tone-dfd2c5']) {
+  const color = html.match(new RegExp('--'+token+':(#[a-f0-9]+)'))[1];
+  const [red,,blue] = rgb(color);
+  assert.ok(blue > red, token + ' should be blue');
+  if (token.endsWith('88')) assert.equal(color.slice(-2),'88');
+ }
+ assert.match(html,/--button-bg:#123456/);
+ assert.doesNotMatch(portfolioHTML({...input,paletteOverride:false}),/--tone-ffb79888:/);
+});
