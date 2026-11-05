@@ -98,13 +98,13 @@ async function recordAdminPageView(siteKey, req) {
 }
 
 async function authenticatedUser(req) {
+ const githubUser = (await session(req))?.user || null;
+ if (githubUser && adminAccess(githubUser)) return githubUser;
  const token = cookies(req).pb_account || '';
  if (/^[a-f0-9]{64}$/.test(token)) {
   const account = await store.get('account-session:' + token);
   if (account?.expires > Date.now() && account.user?.id) return account.user;
  }
- const githubUser = (await session(req))?.user || null;
- if (githubUser && adminAccess(githubUser)) return githubUser;
  return githubUser || null;
 }
 
