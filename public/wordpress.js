@@ -86,7 +86,7 @@ export function wordpressFiles(raw){
  main=main.replace(/<a href="mailto:pfbtokenemailend@example.com"[\s\S]*?<\/a>/g,tag=>`<?php if (pfb_value('email')) : ?>${tag}<?php endif; ?>`);
  main=main.replace(/href="mailto:pfbtokenemailend@example.com"/g,`href="<?php echo esc_url('mailto:' . sanitize_email(pfb_value('email'))); ?>"`).replaceAll('pfbtokenemailend@example.com',phpText('email'));
  main=main.replaceAll(marker.social,`<?php echo esc_url(pfb_value('social')); ?>`);
- if(['codecraft','learnhouse'].includes(data.template))main=main.replaceAll(token('experience'),"<?php echo esc_html(pfb_value('experience') ?: pfb_value('bio')); ?>");
+ if(['codecraft','learnhouse','tahira'].includes(data.template))main=main.replaceAll(token('experience'),"<?php echo esc_html(pfb_value('experience') ?: pfb_value('bio')); ?>");
  for(const key of Object.keys(textLabels))main=main.replaceAll('PFBLABEL'+key.toUpperCase()+'END',`<?php echo nl2br(esc_html(pfb_label('${key}'))); ?>`);
  for(const key of textKeys.filter(k=>!['email','social'].includes(k)))main=main.replaceAll(token(key),phpText(key));
  add('front-page.php',`<?php if (!defined('ABSPATH')) { exit; } get_header(); if (is_page()) { ?><main id="content" class="pfb-elementor-content" dir="rtl"><?php while (have_posts()) : the_post(); the_content(); endwhile; ?></main><?php get_footer(); return; } ?><main id="content" class="pfb-portfolio" dir="rtl">${main}<?php pfb_site_reviews(); ?></main><?php get_footer(); ?>\n`);

@@ -1,3 +1,4 @@
+import {localText} from './locale.js';
 import {normalizeDesign,resolveColors,colorLabels,textLabels,copyFor,orderedSections,sectionLabels,normalizeSkillLevels,hexColor} from './customize.js';
 import {escapeHTML as e} from './shared.js';
 export function skillControls(p){return `<div class="field full skill-controls"><label>نمایش مهارت‌ها<select id="skillsMode"><option value="list" ${p.skillsMode!=='percent'?'selected':''}>فهرست عادی</option><option value="percent" ${p.skillsMode==='percent'?'selected':''}>نوار درصدی</option></select></label><small>مهارت‌ها را با ویرگول یا در خطوط جدا بنویس. درصد هر مهارت را می‌توانی اینجا تنظیم کنی.</small><div id="skillLevels" ${p.skillsMode!=='percent'?'hidden':''}>${skillRows(p)}</div></div>`;}
@@ -43,5 +44,5 @@ export function bindCustomization(p,changed,render){
  document.querySelectorAll('[data-design-number]').forEach(input=>input.oninput=()=>{p.design[input.dataset.designNumber]=Number(input.value);p.design=normalizeDesign(p.design);changed();});
  document.querySelectorAll('[data-design-section]').forEach(input=>input.onchange=()=>{p.design.sections[input.dataset.designSection]=input.checked;changed();});
  document.querySelectorAll('[data-section-move]').forEach(button=>button.onclick=()=>{const order=orderedSections(p),i=order.indexOf(button.dataset.sectionMove),j=i+Number(button.dataset.direction);if(j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];p.design.order=order;changed();render();});
- const reset=document.querySelector('#resetDesign');if(reset)reset.onclick=()=>{if(confirm('تنظیمات ظاهر و متن‌های قالب به پیش‌فرض برگردند؟')){p.design=normalizeDesign({});p.paletteOverride=false;changed();render();}};
+ const reset=document.querySelector('#resetDesign');if(reset)reset.onclick=()=>{if(confirm(localText('تنظیمات ظاهر و متن‌های قالب به پیش‌فرض برگردند؟'))){p.design=normalizeDesign({});p.paletteOverride=false;changed();render();}};
 }
