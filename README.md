@@ -202,8 +202,9 @@ docker run --env-file .env -p 3000:3000 portfoilo-builder
 
 ## Admin dashboard
 
-- Open `/admin` on the deployed site.
-- The dashboard is restricted to the GitHub account that owns the connected repository. Additional administrators can be allowed with the Worker secrets `ADMIN_LOGINS` (GitHub usernames) or `ADMIN_USER_IDS` (stable account IDs).
+- Set `ADMIN_PASSWORD` as an encrypted secret on the Cloudflare Worker (for example, generate a random password with `openssl rand -hex 24`). For local development, set it in `.env`. Admin access is disabled if the password is missing or shorter than 24 characters.
+- Sign in through the site's regular `/account` page with username `admin` and the configured password. You can set `ADMIN_USERNAME` to another available username. The admin username is reserved from public signup.
+- The dashboard and its API require an admin session. Admin sessions expire after eight hours and are invalidated when the configured credentials change.
 - User and site records are indexed when users sign in or access their saved portfolio. Existing users who have not signed in since the dashboard was enabled will appear after their next sign-in.
 - Site page views are counted from the time analytics tracking is enabled; historical views are not reconstructed.
 - The current quota dashboard reports the two successful background-removal attempts per account. AI model token accounting is not enabled in this version.
