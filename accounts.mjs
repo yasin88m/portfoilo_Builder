@@ -104,14 +104,12 @@ export function memoryRecords() {
  };
 }
 
-export function accountRoutes({ records, store, origin, cookies, cookie, json, body }) {
+export function accountRoutes({ records, store, origin, cookies, cookie, json, body, accountSession, adminCredentials }) {
  const responseError = (res, status, error) => json(res, status, { error });
  const siteURL = (owner, site) => `${origin}/sites/${owner}/${site}`;
  async function currentUser(req) {
-  const token = cookies(req).pb_account || '';
-  if (!/^[a-f0-9]{64}$/.test(token)) return null;
-  const row = await store.get('account-session:' + token);
-  if (row?.expires > Date.now() && row.user) {
+  const row = await accountSession(req);
+  if (row?.user) {
    await indexAdminUser(records, row.user, 'account', false);
    return row.user;
   }
@@ -127,28 +125,39 @@ export function accountRoutes({ records, store, origin, cookies, cookie, json, b
   const ip = req.headers['cf-connecting-ip'] || req.socket.remoteAddress || 'local';
   const key = 'limit:' + ip + ':' + Math.floor(Date.now() / 300000);
   if (!(await store.allowAttempt(key))) return responseError(res, 429, 'تعداد تلاش‌ها زیاد است. چند دقیقه دیگر دوباره امتحان کن.');
-  const accountKey = 'user:' + login;
-  const account = (await records.read(accountKey))?.value;
-  const salt = register || !account ? id() : account.salt;
-  const hash = Buffer.from(await (records.hashPassword || passwordHash)(password, salt));
+  const isAdminLogin = login === adminCredentials.login;
   let user;
-  if (register) {
-   user = { id: id(), login };
-   if (!(await records.write(accountKey, { user, salt, hash: hash.toString('hex') }, null))) {
-    return responseError(res, 409, 'این نام کاربری در دسترس نیست.');
-   }
+  if (isAdminLogin) {
+   if (register) return responseError(res, 409, 'این نام کاربری در دسترس نیست.');
+   if (!adminCredentials.verify(password)) return responseError(res, 401, 'نام کاربری یا رمز عبور نادرست است.');
+   user = adminCredentials.user;
   } else {
-   const matches = timingSafeEqual(hash, Buffer.from(account?.hash || '0'.repeat(64), 'hex'));
-   if (!account || !matches) return responseError(res, 401, 'نام کاربری یا رمز عبور نادرست است.');
-   user = account.user;
+   const accountKey = 'user:' + login;
+   const account = (await records.read(accountKey))?.value;
+   const salt = register || !account ? id() : account.salt;
+   const hash = Buffer.from(await (records.hashPassword || passwordHash)(password, salt));
+   if (register) {
+    user = { id: id(), login };
+    if (!(await records.write(accountKey, { user, salt, hash: hash.toString('hex') }, null))) {
+     return responseError(res, 409, 'این نام کاربری در دسترس نیست.');
+    }
+   } else {
+    const matches = timingSafeEqual(hash, Buffer.from(account?.hash || '0'.repeat(64), 'hex'));
+    if (!account || !matches) return responseError(res, 401, 'نام کاربری یا رمز عبور نادرست است.');
+    user = account.user;
+   }
   }
   await indexAdminUser(records, user, 'account', register);
   const oldToken = cookies(req).pb_account || '';
   if (/^[a-f0-9]{64}$/.test(oldToken)) await store.remove('account-session:' + oldToken);
   const token = randomBytes(32).toString('hex');
-  await store.put('account-session:' + token, { user, expires: Date.now() + sessionTTL * 1000 });
-  res.setHeader('Set-Cookie', cookie('pb_account', token, sessionTTL));
-  return json(res, 200, { user });
+  const maxAge = isAdminLogin ? 8 * 60 * 60 : sessionTTL;
+  await store.put('account-session:' + token, {
+   user, expires: Date.now() + maxAge * 1000,
+   ...(isAdminLogin ? { adminTag: adminCredentials.tag } : {})
+  });
+  res.setHeader('Set-Cookie', cookie('pb_account', token, maxAge));
+  return json(res, 200, { user, ...(isAdminLogin ? { admin: true } : {}) });
  }
 
  function summary(owner, site, value) {

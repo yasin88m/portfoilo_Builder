@@ -37,9 +37,10 @@ form.onsubmit = async event => {
  buttons.forEach(button => { button.disabled = true; });
  status.textContent = 'در حال بررسی…';
  try {
-  const { user } = await request('/api/account/' + action, inputs);
+  const { user, admin } = await request('/api/account/' + action, inputs);
   form.reset();
   if (returnTo) location.assign(returnTo);
+  else if (admin) location.assign('/admin');
   else await show(user);
  } catch (error) {
   status.textContent = error.message;
