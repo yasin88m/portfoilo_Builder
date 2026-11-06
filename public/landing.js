@@ -1,3 +1,4 @@
+import './locale.js';
 import {icon,mountIcons} from './icons.js';
 import {initLandingMotion} from './motion.js';
 import {initPreviews} from './preview.js';

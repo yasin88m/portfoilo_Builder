@@ -8,7 +8,7 @@ import {wordpressFiles,wordpressZIP} from '../public/wordpress.js';
 import {templates} from '../public/shared.js';
 import {zipFiles} from '../public/zip.js';
 const sample={name:'سارا',title:'طراح',field:'طراحی',slug:'sara',skills:'طراحی، توسعه',services:'طراحی\nمشاوره',projects:[{title:'اول',description:'نمونه‌کار اول'}]};
-test('all six WordPress themes have native templates, hooks, editable data and no unresolved markers',()=>{
+test('all WordPress themes have native templates, hooks, editable data and no unresolved markers',()=>{
  for(const template of templates){
   const {files}=wordpressFiles({...sample,template});const get=name=>files.find(f=>f.path==='portfolio-sara/'+name)?.content;
   for(const required of ['style.css','index.php','functions.php','front-page.php','header.php','footer.php','singular.php','comments.php','404.php','theme.json','rtl.css','portfolio-data.json','readme.txt'])assert.ok(get(required),required);

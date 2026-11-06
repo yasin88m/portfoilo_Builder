@@ -14,7 +14,7 @@ test('all layouts export independent native Elementor widgets for page, header a
   layouts.push(JSON.stringify(all.map(n=>({type:n.widgetType||n.elType,settings:n.settings}))));
   const front=files.find(f=>f.path.endsWith('/front-page.php')).content;assert.ok(front.includes('the_content()'));assert.ok(files.some(f=>f.path.endsWith('/page.php')));assert.ok(files.some(f=>f.path.endsWith('/inc/elementor.php')));
  }
- assert.equal(new Set(layouts).size,6,'layouts should retain distinct styling and composition');
+ assert.equal(new Set(layouts).size,templates.length,'layouts should retain distinct styling and composition');
 });
 test('Elementor template text is escaped and media stays packaged instead of embedded in JSON',()=>{
  const {files}=wordpressFiles({...input,name:'<script>bad</script>',template:'coral',avatar:'data:image/png;base64,AAAA'});

@@ -1,3 +1,4 @@
+import './locale.js';
 import { escapeHTML as escape } from './shared.js';
 
 const $ = selector => document.querySelector(selector);
@@ -23,7 +24,7 @@ async function show(user) {
  if (!user) return;
  const { sites } = await request('/api/sites');
  $('#siteList').innerHTML = sites.map(site => `<article class="project-editor">
-  <h2>${escape(site.name)}</h2><p>${escape(site.title)} · ${site.url ? 'منتشرشده' : 'پیش‌نویس'}</p>
+  <h2 data-user-text>${escape(site.name)}</h2><p><span data-user-text>${escape(site.title)}</span> · ${site.url ? 'منتشرشده' : 'پیش‌نویس'}</p>
   <div class="actions"><a class="button secondary" href="/builder?site=${encodeURIComponent(site.id)}">ویرایش سایت</a>
   ${site.url ? `<a class="button secondary" href="${escape(site.url)}" target="_blank" rel="noopener">دیدن صفحه عمومی</a>` : ''}</div>
  </article>`).join('') || '<p>هنوز سایتی در حسابت ذخیره نشده.</p>';
