@@ -10,13 +10,31 @@ export async function getDemo({gender,template='codecraft',color='#7552ed',palet
  const[avatar,architecture,dashboard,branding]=await Promise.all([asset(gender==='man'?'man':'woman'),asset('architecture'),asset('dashboard'),asset('branding')]);
  const projects=[{title:'خانه سبز',category:'معماری و تصویرسازی',description:'پروژه نمایشی: یک خانه پایدار در دل طبیعت با تمرکز بر نور، متریال طبیعی و ارتباط با محیط.',image:architecture,url:''},{title:'داشبورد آبان',category:'طراحی محصول دیجیتال',description:'پروژه نمایشی: طراحی رابط تحلیلی برای خواندن ساده‌تر داده‌ها و تصمیم‌گیری سریع‌تر.',image:dashboard,url:''},{title:'هویت بصری رز',category:'برندینگ و بسته‌بندی',description:'پروژه نمایشی: ترکیب رنگ، فرم و بسته‌بندی برای ساخت یک هویت بصری یکپارچه.',image:branding,url:''}];
  if(template!=='evergreen')projects.push(projects.shift());
+ const plans={
+  enabled:true,
+  heading:'پلن‌های نمونه همکاری',
+  description:'این پلن‌ها و قیمت‌ها برای نمایش امکانات قالب هستند.',
+  items:[
+   {name:'شروع',price:'۵ میلیون تومان',period:'برای هر پروژه',description:'برای معرفی یک کسب‌وکار یا خدمت.',features:'جلسه شناخت نیازها\nطراحی یک صفحه\nیک نوبت بازبینی'},
+   {name:'حرفه‌ای',price:'۱۲ میلیون تومان',period:'برای هر پروژه',description:'برای کسب‌وکارهایی که به چند صفحه و طراحی یکپارچه نیاز دارند.',features:'طراحی تا پنج صفحه\nنسخه موبایل و دسکتاپ\nدو نوبت بازبینی',featured:true},
+   {name:'اختصاصی',price:'توافقی',period:'براساس دامنه پروژه',description:'برای پروژه‌هایی با نیازها و امکانات اختصاصی.',features:'تحلیل نیازها و مسیر کاربر\nطراحی رابط و نمونه تعاملی\nتحویل راهنمای طراحی'}
+  ]
+ };
+ const reviews=[
+  {name:'نیلوفر راد',role:'مدیر محصول',quote:'نمونه تعاملی کمک کرد پیش از اجرا، مسیر ثبت‌نام را با تیم مرور کنیم.',rating:5},
+  {name:'امیر کاویان',role:'بنیان‌گذار استودیو',quote:'حالا بازدیدکننده از همان صفحه اول متوجه می‌شود چه خدماتی ارائه می‌دهیم.',rating:5},
+  {name:'رها نیک‌پی',role:'مدیر بازاریابی',quote:'نسخه موبایل خواناست و پیدا کردن اطلاعات تماس خیلی راحت‌تر شده.',rating:4},
+  {name:'مهدی روشن',role:'توسعه‌دهنده وب',quote:'فایل‌ها مرتب تحویل داده شدند و جزئیات طراحی برای پیاده‌سازی روشن بود.',rating:5},
+  {name:'آوا مهران',role:'مدیر پروژه',quote:'زمان‌بندی هر مرحله مشخص بود و بازخوردهای تیم در بازبینی لحاظ شد.',rating:5}
+ ].map(review=>({...review,role:review.role+' · نظر نمونه'}));
+
  if(template==='tahira'&&gender==='woman'){
   const [portrait,cover]=await Promise.all([asset('tahira'),asset('tahiraAbout')]);
   const skills='Figma، Webflow، Framer، Illustrator، Design Systems';
-  return {name:'تاهیرا',title:'طراح دیجیتال',field:'TAHIRA',headline:'من یک طراح دیجیتال هستم',bio:'رابط‌ها و تجربه‌های دیجیتال ساده و خوش‌ساخت طراحی می‌کنم. تمرکزم روی طراحی محصول، وب‌سایت و سیستم‌های طراحی است.',experience:'از نخستین ایده تا ساخت نمونهٔ تعاملی، به تیم‌ها کمک می‌کنم تا محصولاتی خوانا و کاربردی بسازند.',location:'تهران',skills,services:'طراحی وب‌سایت\nطراحی رابط و تجربه کاربری\nطراحی سیستم بصری',email:'hello@example.com',avatar:portrait,cover,projects,template,color,paletteOverride,slug:'tahira-demo',design:{text:{heroTitle:'سلام، من تاهیرا هستم.'}},socialInstagram:'https://www.instagram.com/',socialLinkedIn:'https://www.linkedin.com/',socialX:'https://x.com/'};
+  return {name:'تاهیرا',title:'طراح دیجیتال',field:'TAHIRA',headline:'من یک طراح دیجیتال هستم',bio:'رابط‌ها و تجربه‌های دیجیتال ساده و خوش‌ساخت طراحی می‌کنم. تمرکزم روی طراحی محصول، وب‌سایت و سیستم‌های طراحی است.',experience:'از نخستین ایده تا ساخت نمونهٔ تعاملی، به تیم‌ها کمک می‌کنم تا محصولاتی خوانا و کاربردی بسازند.',location:'تهران',skills,services:'طراحی وب‌سایت\nطراحی رابط و تجربه کاربری\nطراحی سیستم بصری',email:'hello@example.com',avatar:portrait,cover,projects,plans,reviews,template,color,paletteOverride,slug:'tahira-demo',design:{text:{heroTitle:'سلام، من تاهیرا هستم.'}},socialInstagram:'https://www.instagram.com/',socialLinkedIn:'https://www.linkedin.com/',socialX:'https://x.com/'};
  }
  const male=gender==='man',name=male?'آرمان رضایی':'سارا احمدی';
- return {skillLevels:(male?'JavaScript، React، طراحی رابط کاربری، توسعه وب، Git، تجربه کاربری':'Figma، طراحی رابط کاربری، هویت بصری، تصویرسازی، تجربه کاربری، طراحی سیستم').split('، ').map((name,i)=>({name,percent:[85,75,90,80,65,70][i]})),skillsMode:'list',name,title:male?'طراح و توسعه‌دهنده وب':'طراح محصول و هویت بصری',field:male?'توسعه وب و تجربه دیجیتال':'طراحی و ارتباطات بصری',headline:male?'ایده‌های شما را برای وب می‌سازم.':'طراحی‌هایی که دیده و به خاطر سپرده می‌شوند.',bio:`من ${name} هستم. به کمک طراحی و فناوری، ایده‌ها را به تجربه‌هایی ساده و کاربردی تبدیل می‌کنم. این پروفایل، شخصیت و پروژه‌ها صرفاً برای نمایش امکانات قالب ساخته شده‌اند.`,location:'تهران، ایران',skills:male?'JavaScript، React، طراحی رابط کاربری، توسعه وب، Git، تجربه کاربری':'Figma، طراحی رابط کاربری، هویت بصری، تصویرسازی، تجربه کاربری، طراحی سیستم',services:'طراحی وب‌سایت شخصی\nطراحی تجربه دیجیتال\nمشاوره و توسعه ایده',experience:'سوابق نمونه برای نمایش قالب:\nطراح مستقل در استودیو خلاق\nهمکاری در طراحی محصولات دیجیتال',education:'تحصیلات نمونه — طراحی و فناوری',email:'hello@example.com',phone:'',social:'',avatar,cover:architecture,projects,template,color,paletteOverride,slug:male?'arman-demo':'sara-demo',domain:''};
+ return {skillLevels:(male?'JavaScript، React، طراحی رابط کاربری، توسعه وب، Git، تجربه کاربری':'Figma، طراحی رابط کاربری، هویت بصری، تصویرسازی، تجربه کاربری، طراحی سیستم').split('، ').map((name,i)=>({name,percent:[85,75,90,80,65,70][i]})),skillsMode:'list',name,title:male?'طراح و توسعه‌دهنده وب':'طراح محصول و هویت بصری',field:male?'توسعه وب و تجربه دیجیتال':'طراحی و ارتباطات بصری',headline:male?'ایده‌های شما را برای وب می‌سازم.':'طراحی‌هایی که دیده و به خاطر سپرده می‌شوند.',bio:`من ${name} هستم. به کمک طراحی و فناوری، ایده‌ها را به تجربه‌هایی ساده و کاربردی تبدیل می‌کنم. این پروفایل، شخصیت و پروژه‌ها صرفاً برای نمایش امکانات قالب ساخته شده‌اند.`,location:'تهران، ایران',skills:male?'JavaScript، React، طراحی رابط کاربری، توسعه وب، Git، تجربه کاربری':'Figma، طراحی رابط کاربری، هویت بصری، تصویرسازی، تجربه کاربری، طراحی سیستم',services:'طراحی وب‌سایت شخصی\nطراحی تجربه دیجیتال\nمشاوره و توسعه ایده',experience:'سوابق نمونه برای نمایش قالب:\nطراح مستقل در استودیو خلاق\nهمکاری در طراحی محصولات دیجیتال',education:'تحصیلات نمونه — طراحی و فناوری',email:'hello@example.com',phone:'',social:'',avatar,cover:architecture,projects,plans,reviews,template,color,paletteOverride,slug:male?'arman-demo':'sara-demo',domain:''};
 }
 
 // Repair only the two exact truncated demo files shipped before 3.4.1.
